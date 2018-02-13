@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<scene version="0.5.0">
+    <shape type="obj">
+        <string name="filename" value="./temp/model.obj" />
+        <boolean name="faceNormals" value="true" />
+        <transform name="toWorld">
+             <translate x="$x" y="$y" z="$z"/>
+             <matrix value="$mat"/>
+        </transform>
+    </shape>
+
+    <emitter type="constant">
+    </emitter>
+
+    <integrator type="direct" >
+        <integer name="shadingSamples" value="16"/>
+    </integrator>
+
+    <sensor type="perspective">
+        <transform name="toWorld">
+            <lookAt target="0,0,0" origin="5 -1 0" up="0,1,0"/>
+        </transform>
+        <string name="focalLength" value="100mm"/>
+
+        <sampler type="ldsampler">
+            <integer name="sampleCount" value="8"/>
+        </sampler>
+
+        <film type="ldrfilm">
+            <integer name="width" value="500"/>
+            <integer name="height" value="500"/>
+            <boolean name="banner" value="false"/>
+            <string name="pixelFormat" value="rgb" />
+        </film>
+    </sensor>
+</scene>
