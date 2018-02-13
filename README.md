@@ -1,0 +1,1 @@
+# ShapeNet-symmetry
