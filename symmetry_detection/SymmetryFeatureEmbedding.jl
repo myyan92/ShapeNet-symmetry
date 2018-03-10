@@ -6,194 +6,10 @@ push!(LOAD_PATH, "../../geometryprocessing/julia")
 @everywhere using MeshIO
 @everywhere using FileIO
 @everywhere using MyGeomUtils
-include("./ConnectedComponent.jl")
 include("./symmetrySpectral.jl")
 include("./icp.jl")
+include("./refineAxis.jl")
 
-@everywhere function thresh_start()
-    return 0.05
-end
-
-@everywhere function thresh_end()
-    return 0.035
-end
-
-#axis is the normal of the reflection plane. 
-#return refined axis or none if not a reflection plane.
-@everywhere function refineAxis_reflect(points, axis, log)
-    @printf(log, "%s\n", "refine_reflect:")
-    transform = axis2matrix(axis, -1)
-    points_trans = transform * points'
-    TR,TT,ER,t = icp(points', points_trans, 50, Minimize="point")
-    transform = TR * transform
-    @printf(log, "%f %f\n", ER[1], ER[end])
-    if ER[1] < thresh_start() && ER[end] < thresh_end()
-        axis, angle, reflect = matrix2axis(transform)
-        return axis
-    end
-    return []
-end
-
-#axis is the rotation axis
-#reflectPose and axis forms one of the reflection plane
-@everywhere function refineAxis_C(points, axis, degree, reflectPose, log)
-    @printf(log, "%s\n", "refine_C:")
-    transform = axis2matrix(axis, degree)
-    baserotation = transform
-    basereflection = axis2matrix(cross(axis,reflectPose), -1)
-    valid_rotate = zeros(degree,1)
-    valid_reflect = zeros(degree,1)
-    isreflect = true
-    for j = 1:degree
-        points_trans = baserotation * points'
-        TR,TT,ER,t = icp(points', points_trans, 1, Minimize="point")
-        @printf(log, "%f ", ER[1])
-        if ER[1] < thresh_start()
-            TR,TT,ER,t = icp(points', points_trans, 50, Minimize="point")
-            @printf(log, "%f", ER[end])
-            if ER[end] < thresh_end() valid_rotate[j]=1; end
-        end
-        @printf(log, "\n")
-        points_trans = basereflection * points'
-        TR,TT,ER,t = icp(points', points_trans, 1, Minimize="point")
-        @printf(log, "%f ", ER[1])
-        if ER[1] < thresh_start()
-            TR,TT,ER,t = icp(points', points_trans, 50, Minimize="point")
-            @printf(log, "%f", ER[end])
-            if ER[end] < thresh_end() valid_reflect[j]=1; end  
-        end
-        @printf(log, "\n")
-        baserotation = transform * baserotation
-        basereflection = transform * basereflection
-    end
-    degree_f = 1
-    idx = 0
-    for j = 1:degree
-        if mod(degree,j) != 0 continue; end
-        numValid = Int(sum(valid_rotate[j:j:end]))
-        if j*numValid == degree 
-            degree_f = numValid
-            valid_reflect = reshape(valid_reflect, j, numValid)
-            numValid2= sum(valid_reflect, 2)
-            idx = findfirst(numValid2.==numValid)
-            if idx == 0
-                isreflect= false
-            end    
-            break
-        end
-    end
-    axis_f = zeros(3,1)
-    if degree_f == 1
-        axis_f = axis
-    else
-        transform = axis2matrix(axis, degree_f)
-        baserotation = transform
-        for j = 1:degree_f
-            points_trans = baserotation * points'
-            TR,TT,ER,t = icp(points', points_trans, 50, Minimize="point")
-            axis_t, degree_t, reflect_t = matrix2axis(TR*baserotation)
-            if dot(vec(axis_f), vec(axis_t)) < 0 axis_t = -axis_t; end
-            axis_f = axis_f + axis_t
-            baserotation = transform * baserotation
-        end
-        axis_f = axis_f ./ norm(axis_f)
-    end
-    if isreflect;
-        transform = axis2matrix(axis_f, degree)
-        basereflection = axis2matrix(cross(vec(axis_f),vec(reflectPose)), -1)
-        for j = 1:idx-1
-            basereflection = transform * basereflection
-        end
-        points_trans = basereflection * points'
-        TR,TT,ER,t = icp(points', points_trans, 50, Minimize="point")
-        axis_t, degree_t, reflect_t = matrix2axis(TR*basereflection)
-        reflectPose_f = - cross(vec(axis_f), vec(axis_t))
-        if dot(reflectPose_f, reflectPose) < 0
-            reflectPose_f = -reflectPose_f
-        end
-        reflectPose_f = reflectPose_f ./ norm(reflectPose_f)
-    else 
-        reflectPose_f = reflectPose
-    end
-    vec(axis_f), vec(reflectPose_f), degree_f, isreflect
-end
-
-@everywhere function refineAxis_D(points, axis, degree, reflectPose, log)
-    @printf(log, "%s\n", "refine_D:")
-    axis, reflectPose, degree, isreflect = refineAxis_C(points, axis, degree, reflectPose, log)
-    symType = ""
-    if degree == 1 && isreflect
-        axis_t = refineAxis_reflect(points, axis, log)
-        if isempty(axis_t) 
-            symType = "Cs"
-        else
-            symType = "C2v"
-            degree = 2
-            axis = reflectPose
-            reflectPose = axis_t
-        end
-        return vec(axis), vec(reflectPose), degree, symType
-    elseif degree == 1
-        axis_t = refineAxis_reflect(points, axis, log)
-        if isempty(axis_t)
-            symType = "E"
-            axis_f = axis
-            reflectPose_f = reflectPose
-        else
-            symType = "Cs"
-            axis_f = cross(vec(axis_t), vec(reflectPose))
-            axis_f = axis_f ./ norm(axis_f)
-            reflectPose_f = cross(axis_t, axis_f)
-        end
-        return vec(axis_f), vec(reflectPose_f), degree, symType
-    end
-    @printf(log, "%s\n", "H plane varify:")
-    transform = axis2matrix(axis,-1)
-    points_trans = transform * points'
-    TR,TT,ER,t = icp(points', points_trans, 1, Minimize="point")
-    @printf(log, "%f\n", ER[1])
-    if ER[1] < thresh_end()
-        if isreflect
-            symType = "D$(degree)h"
-        else
-            symType = "C$(degree)h"
-        end
-    else
-        @printf(log, "%s\n", "degree 2 axises verify:")
-        transform = axis2matrix(axis, degree)
-        halftransform = axis2matrix(axis, 2*degree)
-        baseDRotate = axis2matrix(reflectPose,2)
-        if isreflect
-            baseDRotate = halftransform * baseDRotate
-        end
-        valid_D = zeros(degree,1)
-        for j = 1:degree
-            points_trans = baseDRotate * points'
-            TR,TT,ER,t = icp(points', points_trans, 1, Minimize="point")
-            @printf(log, "%f ", ER[1])
-            if ER[1] < thresh_start()
-                TR,TT,ER,t = icp(points', points_trans, 50, Minimize="point")
-                @printf(log, "%f", ER[end])
-                if ER[end] < thresh_end() valid_D[j]=1; end
-            end
-            @printf(log, "\n")
-            baseDRotate = transform * baseDRotate
-        end
-        if sum(valid_D)==degree
-            if isreflect
-                symType = "D$(degree)d"
-            else
-                symType = "D$(degree)"
-            end
-        elseif isreflect
-            symType = "C$(degree)v"
-        else
-            symType = "C$(degree)"
-        end
-    end
-
-    vec(axis), vec(reflectPose), degree, symType
-end
 
 @everywhere function estimateDegree(points, axis)
     rbin = 6
@@ -241,6 +57,7 @@ end
     #maxval, Descriptor = findmax(hist[2:end,:,:],1)
     Descriptor = (Descriptor-1) .% (abin-1) +1
     Descriptor[maxval .< 0.55] = 20
+    Descriptor[Descriptor .> 20] = 20
     phase = [rphi[Descriptor[i]+1, i] for i in 1:2*hbin]
     phase = - vec(phase) ./ vec(Descriptor) + pi/abin
     maxpos = zeros(3, size(phase,1))
@@ -324,7 +141,8 @@ end
     @printf(log, "%f %f %f\n", eigenvec[1,:]...)
     @printf(log, "%f %f %f\n", eigenvec[2,:]...)
     @printf(log, "%f %f %f\n", eigenvec[3,:]...)
-    
+    println(maximum(Mesh.vertices, 1))
+    println(minimum(Mesh.vertices, 1))   
     #fixed point and PCA
     densityProposal = GetSampleDensityProposal(Mesh, 8000)
     densepoints = SamplePoints(Mesh, densityProposal)
@@ -357,22 +175,18 @@ end
     #suggest promising symmetry
     symType = "E"
     canonical_dir = eigenvec
+    translate = zeros(3,1)
     if val[1] > 0.001
         #no symmetry, return
         @printf(log, "%s\n", "no symmetry")
-        canonical_dir = eigenvec
-        symType = "E"
 
     elseif val[2] > 0.001
         #reflection normal = first eigenvector
         axis = dir[:,1]
         degree = -1
-        axis_f = refineAxis_reflect(densepoints, axis, log)
+        axis_f, translate_f = refineAxis_reflect(densepoints, axis, log)
         if isempty(axis_f)
             @printf(log, "%s\n", "reflection test failed")
-            canonical_dir = eigenvec
-            symType = "E"
-
         else
             @printf(log, "%s\n", "reflection test pass")
             axis2 = cross(dir[:,3], axis_f)
@@ -384,6 +198,7 @@ end
             axis2_f=hcat(axis2, axis3)*dir2[:,1] 
             axis3_f=hcat(axis2, axis3)*dir2[:,2]
             canonical_dir = hcat(axis_f, axis2_f, axis3_f)
+            translate = translate_f
             symType = "Cs"
         end
     elseif val[3] > 0.001
@@ -398,18 +213,21 @@ end
         degree_f = 0
         axis_f = []
         reflectPose = []
+        translate_f = []
         isreflect_f = false
         for i = 1:size(degrees,1)
             if (i>1) && (degrees[i]==degrees[i-1]) continue; end
-            axis_t, reflectPose_t, degree_t, isreflect= refineAxis_C(densepoints, axis, degrees[i], reflectPoses[:,i], log)
+            axis_t, reflectPose_t, translate_t, degree_t, isreflect= refineAxis_C(densepoints, axis, degrees[i], reflectPoses[:,i], log)
             if degree_t > degree_f 
                 degree_f = degree_t
                 axis_f = axis_t
                 reflectPose = reflectPose_t
+                translate_f = translate_t
                 isreflect_f = isreflect
             elseif degree_t == degree_f && isreflect
                 axis_f = axis_t
                 reflectPose = reflectPose_t
+                translate_f = translate_t
                 isreflect_f = isreflect
             end
         end
@@ -418,6 +236,7 @@ end
         canonical_dir[:,3] -= canonical_dir[:,2]*dot(canonical_dir[:,2],canonical_dir[:,3])
         canonical_dir[:,3] /= norm(canonical_dir[:,3])
         canonical_dir[:,1] = cross(canonical_dir[:,2],canonical_dir[:,3]) 
+        translate = translate_f
         symType = "C$(degree_f)"
         if isreflect_f
             symType = symType * "v"
@@ -432,74 +251,15 @@ end
         # higher order symmetry
         if eigenval[1]/eigenval[2] < 0.9 && eigenval[2]/eigenval[3] < 0.9
             @printf(log, "%s\n", "cuboid group")
-            degrees = ones(3,1)
-            reflect = falses(3,1)
-            reflectPoses = zeros(3,3)
-            for a = 1:3
-                axis = eigenvec[:,a]
-                if a<3
-                    reflectPose = eigenvec[:,a+1]
-                else
-                    reflectPose = eigenvec[:,1]
-                end
-                canonical_dir[:,a], reflectPose_t, degree_t, isreflect_t = refineAxis_C(densepoints, axis, 2, reflectPose, log)
-                if degree_t == 2 degrees[a]=2; end
-                if isreflect_t reflect[a]=1; reflectPoses[:,a] = reflectPose_t; end
-            end
-            @printf(log, "%d %d %d\n", degrees...)
-            @printf(log, "%d %d %d\n", reflect...)
-            idx = find(degrees.==2)
-            if isempty(idx)
-                if reflect[1] || reflect[2] || reflect[3]
-                    idx_r = find(reflect.==1)
-                    if size(idx_r,1)>2
-                        @printf(log, "%s\n", "error: two reflection planes must result in C2")
-                    else
-                        idx_r = idx_r[1]
-                        canonical_dir[:,2] = canonical_dir[:,idx_r]
-                        canonical_dir[:,3] = reflectPoses[:,idx_r]
-                        canonical_dir[:,3] -= canonical_dir[:,2]*dot(canonical_dir[:,2],canonical_dir[:,3])
-                        canonical_dir[:,3] /= norm(canonical_dir[:,3])
-                        canonical_dir[:,1] = cross(canonical_dir[:,2],canonical_dir[:,3])
-                        symType = "Cs"
-                    end
-                else 
-                    canonical_dir = eigenvec
-                    symType = "E"
-                end    
-            elseif size(idx,1)==3
-                if reflect[1] && reflect[2] && reflect[3]
-                    symType = "D2h"
-                elseif !(reflect[1] || reflect[2] || reflect[3])
-                    symType = "D2"
-                else 
-                    @printf(log, "%s\n", "error: cuboid groups should not have D2d")
-                end
-                canonical_dir[:,2]=canonical_dir[:,2] - canonical_dir[:,3]*dot(canonical_dir[:,2],canonical_dir[:,3])
-                canonical_dir[:,2]=canonical_dir[:,2] ./ norm(canonical_dir[:,2])
-                canonical_dir[:,1]=cross(canonical_dir[:,2], canonical_dir[:,3])
-            elseif size(idx,1)==1
-                idx = idx[1]
-                if reflect[idx]
-                    symType = "C2v"
-                else
-                    axis_t = refineAxis_reflect(densepoints, canonical_dir[:,idx], log)
-                    if isempty(axis_t)
-                        symType = "C2"
-                    else
-                        symType = "C2h"
-                        canonical_dir[:,idx]=axis_t
-                    end
-                end
-                temp = canonical_dir[:,idx]
-                canonical_dir[:,idx]=canonical_dir[:,2]
-                canonical_dir[:,2]=temp
-                canonical_dir[:,3]=canonical_dir[:,3] - canonical_dir[:,2]*dot(canonical_dir[:,2],canonical_dir[:,3])
-                canonical_dir[:,3]=canonical_dir[:,3] ./ norm(canonical_dir[:,3])
-                canonical_dir[:,1]=cross(canonical_dir[:,2], canonical_dir[:,3])
-            else 
-                @printf(log, "%s\n", "error resolving symType C2/D2")
-            end
+            axis = eigenvec[:,1]
+            reflectPose = eigenvec[:,2]
+            axis_f, reflectPose, translate, degree_f, symType = refineAxis_D(densepoints, axis, 2, reflectPose, log)
+            canonical_dir[:,2] = axis_f
+            canonical_dir[:,3] = reflectPose
+            canonical_dir[:,3] -= canonical_dir[:,2]*dot(canonical_dir[:,2],canonical_dir[:,3])
+            canonical_dir[:,3] /= norm(canonical_dir[:,3])
+            canonical_dir[:,1] = cross(canonical_dir[:,2],canonical_dir[:,3])
+
         elseif eigenval[1]/eigenval[2] < 0.9 || eigenval[2]/eigenval[3] < 0.9
             @printf(log, "%s\n", "D group axis")
             if eigenval[1]/eigenval[2] < 0.9
@@ -518,15 +278,17 @@ end
             symType_t = ""
             for i = 1:size(degrees,1)
                 if (i>1) && (degrees[i]==degrees[i-1]) continue; end
-                axis_t, reflectPose_t, degree_t, symType_t= refineAxis_D(densepoints, axis, degrees[i], reflectPoses[:,i], log)
+                axis_t, reflectPose_t, translate_t, degree_t, symType_t= refineAxis_D(densepoints, axis, degrees[i], reflectPoses[:,i], log)
                 if degree_t > degree_f 
                     degree_f = degree_t
                     axis_f = axis_t
                     reflectPose = reflectPose_t
+                    translate = translate_t
                     symType = symType_t
                 elseif degree_t == degree_f && symLevel(symType_t) > symLevel(symType)
                     axis_f = axis_t
                     reflectPose = reflectPose_t
+                    translate = translate_t
                     symType = symType_t
                 end
             end
@@ -538,7 +300,7 @@ end
 
         else
             @printf(log, "%s\n", "calling symSpectral")
-            candtrans = symmetrySpectral_short(points,desc)
+            candtrans = symmetrySpectral(points,desc)
             symtrans, symscores = refineTransform(candtrans, densepoints)
             axises_f, degrees_f, reflections_f = processSymmetry(symtrans, symscores)
             num_high_degree = 0
@@ -554,34 +316,29 @@ end
                 end
                 for i = 1:size(axises_f, 2)
                     if (degrees_f[i] != 1)
-                        degrees, reflectPoses = estimateDegree(densepoints, axises_f[:,i])
-                        idx = sortperm(vec(degrees), rev=true)
-                        degrees = degrees[idx]
-                        reflectPoses = reflectPoses[:,idx]  
-                        degree_f = 0
-                        symType_f = "E"
-                        axis_f = []
+                        if degrees_f[i] == 0 degrees_f[i]=Int(20); end
                         reflectPose = []
-                        symType_t = ""
-                        for idx = 1:size(degrees,1)
-                            if (idx>1) && (degrees[idx]==degrees[idx-1]) continue; end
-                            axis_t, reflectPose_t, degree_t, symType_t= refineAxis_D(densepoints, axises_f[:,i], degrees[idx], reflectPoses[:,idx], log)
-                            if degree_t > degree_f
-                                degree_f = degree_t
-                                axis_f = axis_t
-                                reflectPose = reflectPose_t
-                                symType_f = symType_t
-                            elseif degree_t == degree_f && symLevel(symType_t) > symLevel(symType_f)
-                                axis_f = axis_t
-                                reflectPose = reflectPose_t
-                                symType_f = symType_t
+                        for j = 1:size(axises_f, 2)
+                            if (reflections_f[j]==-1) && norm(cross(vec(axises_f[:,i]), vec(axises_f[:,j])))>0.9
+                                reflectPose = cross(vec(axises_f[:,i]),vec(axises_f[:,j]))
+                                break
                             end
                         end
+                        if isempty(reflectPose)
+                            reflectPose = cross(vec(axises_f[:,i]), vec([1,0,0]))
+                            if norm(reflectPose) < 0.2
+                                reflectPose = cross(vec(axises_f[:,i]), vec([0,1,0]))
+                            end
+                        end
+                        reflectPose = reflectPose ./ norm(reflectPose)
+                        axis_f, reflectPose_f, translate_f, degree_f, symType_f= refineAxis_D(densepoints, axises_f[:,i], degrees_f[i], reflectPose, log)
                         if degree_f > 2
                             num_high_degree += 1
                         end
                         println(degree_f)
                         println(axis_f)
+                        translate = translate .+ translate_f
+                        densepoints = densepoints .+ translate_f'
                         if (degree_f > highest_deg) || (degree_f == highest_deg && symLevel(symType_f) > symLevel(symType)) 
                             highest_deg = degree_f
                             symType = symType_f
@@ -602,6 +359,27 @@ end
                         end
                     end
                 end
+                if (highest_deg == 1)
+                    for i = 1:size(axises_f,2)
+                        if reflections_f[i] == -1
+                            axis_f, translate_f = refineAxis_reflect(densepoints, axises_f[i], log)
+                            if !isempty(axis_f)
+                                axis2 = cross(dir[:,3], axis_f)
+                                axis2 = axis2 ./ norm(axis2)
+                                axis3 = cross(axis_f, axis2)
+                                Cov_2 = vcat(axis2', axis3') * Cov * hcat(axis2, axis3)
+                                val2,dir2 = eig(Cov_2)
+                                dir2 = dir2[:, sortperm(val2)]
+                                axis2_f=hcat(axis2, axis3)*dir2[:,1] 
+                                axis3_f=hcat(axis2, axis3)*dir2[:,2]
+                                canonical_dir = hcat(axis_f, axis2_f, axis3_f)
+                                translate = translate_f
+                                symType = "Cs"
+                            end
+                        end
+                    end
+                end
+
                 if (num_high_degree > 1)
                     println("special group")
                     if highest_deg == 5
@@ -627,8 +405,7 @@ end
             canonical_dir[:,m]=-canonical_dir[:,m]
         end
     end
-
-    symType, canonical_dir, mcenter
+    symType, canonical_dir, translate, mcenter
 end
 
 
@@ -650,13 +427,14 @@ end
     center = ((vmax+vmin) * 0.5)
     radius = norm(vmax-vmin) * 0.5
     newMesh.vertices = (newMesh.vertices .- center) ./ radius;
-    logname = "Results/" * synsetID * "/" * modelname * ".log"
+    logname = "Results/" * synsetID * "/" * modelname * ".log-n"
     fout = open(logname, "w")
-    symType, canonical, mcenter = detectSelfSymmetry(newMesh, fout)
+    symType, canonical, translate, mcenter = detectSelfSymmetry(newMesh, fout)
     close(fout)
-    filename = "Results/" * synsetID * "/" * modelname * ".sym3"
+    filename = "Results/" * synsetID * "/" * modelname * ".sym3-n"
     fout = open(filename, "w")
     @printf(fout, "%s\n", symType)
+    @printf(fout, "%f %f %f\n", translate[:]...)
     @printf(fout, "%f %f %f\n", canonical[1,:]...)
     @printf(fout, "%f %f %f\n", canonical[2,:]...)
     @printf(fout, "%f %f %f\n", canonical[3,:]...)
@@ -665,12 +443,13 @@ end
 
 
 
-#synsetID = "02942699" 
+#synsetID = "02958343" 
 #println(synsetID)
-#models = readall("/orions4-zfs/projects/haohe/3DSIChallenge/deduplicate/deduplicated_model_list/" * synsetID * ".txt")
+#models = readall("./deduplicate_lists/" * synsetID * ".txt")
 models = readall("tasklist.txt")
 models = split(models, '\n')
-models = [split(models[i], '/') for i = 1:size(models,1)-1 ]
+#models = ["7ae9c3f17c5f9c569284ac9fef3539eb"]
+models = [split(models[i], ' ') for i = 1:size(models,1)-1 ]
 synsets = [models[i][1] for i = 1:size(models,1)]
 models = [models[i][2] for i = 1:size(models,1)]
 #for i = size(models,1):-1:1
@@ -681,9 +460,10 @@ models = [models[i][2] for i = 1:size(models,1)]
 #end
 #println(size(models))
 #shuffle!(models)
-#synsets = fill(synsetID, size(models))
+#synsets = fill(synsetID, size(models,1))
+println(size(models,1))
 #for i = 1:size(models,1)
-#    main(synsetID, models[i])
+#    main(synsets[i], models[i])
 #end
 pmap(main, synsets, models)
 

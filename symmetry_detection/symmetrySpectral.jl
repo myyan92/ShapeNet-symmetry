@@ -96,6 +96,18 @@ end
     axises = axises[idx]
     angles = angles[idx]
     reflections = reflections[idx]
+    for i = 1:size(axises, 1)
+        if reflections[i] == 1 continue end
+        for j = i+1:size(axises, 1)
+            if reflections[j] == 1 continue end
+            axis = cross(vec(axises[i]), vec(axises[j]))
+            push!(axises, axis ./ norm(axis))
+            push!(angles, acos(dot(vec(axises[i]), vec(axises[j])))*2)
+            push!(reflections, 1)
+            #println(size(axises, 1))
+            #println(size(angles, 1))
+        end
+    end
     if size(axises,1)>0
         axises_f = axises[1]
         push!(angles_f,Float64[angles[1]])
@@ -125,9 +137,9 @@ end
         end
     end
 
-    print(axises_f)
-    print(angles_f)
-    print(reflection_f)
+    #print(axises_f)
+    #print(angles_f)
+    #print(reflection_f)
 
     angles_gt = Array(Any,0)
     push!(angles_gt, [0])
@@ -142,7 +154,7 @@ end
     if isempty(axises_f)
         return ([],[],[])
     else
-        degree_f = zeros(1, size(axises_f,2))
+        degree_f = zeros(Int, 1, size(axises_f,2))
         for i = 1:size(axises_f,2)
             for d = 1:8
                 diff = pairwise(Cityblock(), angles_f[i]', angles_gt[d]')
