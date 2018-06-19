@@ -229,10 +229,12 @@ end
     if (proposal.class == "E")
       translate = zeros(3,1)
       symtype = "E"
+      degree = 1
     elseif (proposal.class == "R")
       axis, translate = refineAxis_reflect(points, coordinate[:,1], log)
       if !isempty(axis)
         symtype = "Cs"
+        degree = -1
         coordinate[:,1] = axis ./ norm(axis)
         coordinate[:,2] = coordinate[:,2] - dot(coordinate[:,2],coordinate[:,1]) .* coordinate[:,1]
         coordinate[:,2] = coordinate[:,2] ./ norm(coordinate[:,2])
@@ -240,6 +242,7 @@ end
       else
         translate = zeros(3,1)
         symtype = "E"
+        degree = 1
       end
     elseif (proposal.class == "C")
       axis, reflectPose, translate, degree, isreflect = refineAxis_C(points, coordinate[:,2], proposal.degree, coordinate[:,3], log)
@@ -255,6 +258,7 @@ end
         end
       elseif isreflect
           symtype = "Cs"
+          degree = -1
       else
           symtype = "E"
           translate = zeros(3,1)
@@ -267,52 +271,7 @@ end
       coordinate[:,3] = coordinate[:,3] ./ norm(coordinate[:,3])
       coordinate[:,1] = cross(coordinate[:,2], coordinate[:,3])
     end
-    return symtype, translate, coordinate
+    return symtype, degree, translate, coordinate
 end
 
-@everywhere function loadPC(synsetID, modelname)
-    #mesh normalization
-    model = load("/orions3-zfs/projects/haosu/ShapeNetCore2015Spring/ShapeNetCore.v1/" * synsetID * "/" * modelname * "/model.obj");
-    v= zeros(size(model.vertices,1),3);
-    for i = 1:size(model.vertices,1)
-        v[i,:]=[model.vertices[i][1], model.vertices[i][2], model.vertices[i][3]];
-    end
-    f = zeros(size(model.faces, 1),3);
-    for i = 1:size(model.faces,1)
-        f[i,:] = [model.faces[i][1]+1, model.faces[i][2]+1, model.faces[i][3]+1];
-    end
-    newMesh = BuildMesh(v,f);
-
-    face = newMesh.faces;
-    mcenter = zeros(3,1);
-    totalarea = 0;
-    for f in face
-        pt1 = vec(newMesh.vertices[f[1],:]);
-        pt2 = vec(newMesh.vertices[f[2],:]);
-        pt3 = vec(newMesh.vertices[f[3],:]);
-        area = norm(cross(pt1-pt2,pt2-pt3))/2;
-        mcenter = mcenter + area / 3 * (pt1+pt2+pt3);
-        totalarea = totalarea + area;
-    end
-    mcenter = mcenter ./ totalarea;
-    newMesh.vertices = newMesh.vertices .- mcenter';
-    diag = maximum(sum(.^(newMesh.vertices,2),2),1);
-    newMesh.vertices = newMesh.vertices ./ sqrt(diag);
-
-    #sample point cloud
-    densityProposal = GetSampleDensityProposal(newMesh, 8000);
-    densepoints = SamplePoints(newMesh, densityProposal);
-    return densepoints
-end
-
-
-@everywhere function saveSymmetry(filename, symType, translate, coordinate)
-    fout = open(filename, "w")
-    @printf(fout, "%s\n", symType)
-    @printf(fout, "%f %f %f\n", translate[:]...)
-    @printf(fout, "%f %f %f\n", coordinate[1,:]...)
-    @printf(fout, "%f %f %f\n", coordinate[2,:]...)
-    @printf(fout, "%f %f %f\n", coordinate[3,:]...)
-    close(fout)
-end
 

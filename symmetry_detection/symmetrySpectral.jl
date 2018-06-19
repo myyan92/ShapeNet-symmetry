@@ -3,8 +3,9 @@ using MeshIO
 using FileIO
 using Distances
 using NearestNeighbors
-@everywhere include("icp.jl")
-@everywhere include("utils.jl")
+@everywhere include("./io.jl")
+@everywhere include("./icp.jl")
+@everywhere include("./utils.jl")
 
 #shape context descriptor
 @everywhere function ShapeContext(points, radius=0.6, rbin=5, hbin=5, abin=128)
@@ -170,44 +171,18 @@ end
     axises_f, degree_f, reflection_f
 end
 
-@everywhere function saveSymmetryAxis(outName::AbstractString, axises_f, degree_f, reflection_f)
-    fout = open(outName, "w")
-    for i = 1:3
-        for j = 1:size(axises_f,2)
-            @printf(fout, "%7.3f ", axises_f[i,j])
-        end
-        @printf(fout, "\n")
-    end
-    for j = 1:size(degree_f,2)
-        @printf(fout, "%3d ", degree_f[j])
-    end
-    @printf(fout, "\n")
-    for j = 1:size(reflection_f,2)
-        @printf(fout, "%3d ", reflection_f[j])
-    end
-    @printf(fout, "\n")
-    close(fout)
-    return 0
-end
 
 @everywhere function refineTransform(candtrans, points)
     symtrans = []
     symscores = []
     for transform in candtrans
-        points_trans = transform * points'
-    #    TR,TT,ER,t = icp(points', points_trans, 5)
-    #    transform = TR * transform
-    #    if ER[end] < 0.02 
-    #        push!(symtrans, transform)
-    #        push!(symscores, ER[end])
-    #    else 
-            TR,TT,ER,t = icp(points', points_trans, 50, Minimize="point")
-            transform = TR * transform
-            if ER[end] < 0.025
-                push!(symtrans, transform)
-                push!(symscores, ER[end])
-            end
-    #    end
+        points_trans = transform * points' 
+        TR,TT,ER,t = icp(points', points_trans, 50, Minimize="point")
+        transform = TR * transform
+        if ER[end] < 0.025
+            push!(symtrans, transform)
+            push!(symscores, ER[end])
+        end
     end
 
     symtrans, symscores

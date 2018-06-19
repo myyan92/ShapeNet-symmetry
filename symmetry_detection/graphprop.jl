@@ -1,52 +1,33 @@
+include("./io.jl")
+include("./refineAxis.jl")
 
-include("refineAxis.jl")
-
-synsetID = ARGS[1];
-model_list = "/orions4-zfs/projects/haohe/3DSIChallenge/deduplicate/deduplicated_model_list/"*synsetID*".txt";
-models = readall(model_list);
-models = split(models, '\n');
-size(models,1)
-
-graphFile = "/orions4-zfs/projects/mengyuan/julia_code/symmetry/NNGraph/"*synsetID*".txt";
-NNgraph = readdlm(graphFile);
-size(NNgraph,1)
-
-
-function readSymmetry(synsetID, md5)
-    sym_root = "/orions4-zfs/projects/mengyuan/julia_code/symmetry/Results/" * synsetID * "/";
-    f = open(sym_root*md5*".sym3t");
-    sym_type = readline(f);
-    sym_type = chomp(sym_type);
-    translate = readline(f);
-    translate = split(chomp(translate))
-    translate = [float(translate[1]), float(translate[2]), float(translate[3])]
-    coordinate = readdlm(f);
-    if sym_type=="E" 
+function generateAxis(symType, translate, coordinate)
+    if symType=="E" 
         return []; 
     end
-    if sym_type=="Cs"
+    if symType=="Cs"
         return [Axis("R", -1, coordinate)];
     end
-    if (sym_type[1]=='C' || sym_type[1]=='D')
-        degree = tryparse(Int64, sym_type[2:end]);
+    if (symType[1]=='C' || symType[1]=='D')
+        degree = tryparse(Int64, symType[2:end]);
         if isnull(degree)
-            degree = parse(Int64, sym_type[2:end-1]);
+            degree = parse(Int64, symType[2:end-1]);
         else 
             degree = get(degree);
         end
     end
-    if sym_type[1]=='C'
-        if sym_type[end]=='h'
+    if symType[1]=='C'
+        if symType[end]=='h'
             return [Axis("D", degree, coordinate)];
         else
             return [Axis("C", degree, coordinate)];
         end
     end
-    if sym_type[1]=='D'
+    if symType[1]=='D'
         return [Axis("D", degree, coordinate)];
     end
-    if sym_type[1]=='O'
-        if sym_type=="O3"
+    if symType[1]=='O'
+        if symType=="O3"
             degree = 20
         else
             degree = 4
@@ -57,22 +38,21 @@ function readSymmetry(synsetID, md5)
         coordinate = [coordinate[:,2] coordinate[:,3] coordinate[:,1]]
         push!(axises, Axis("D", degree, coordinate))
         return axises
-
     end
-    error(" symmetry not implemented")    
+    error("symmetry not implemented")    
 end
 
 
-function mergeAxis(axisList, axis)
-    if isempty(axisList)
-        return axis
+function mergeAxis(nbAxises, selfAxises)
+    if isempty(nbAxises)
+        return selfAxises
     end
-    if !isempty(axis)
-        proposals = deepcopy(axis);
+    if !isempty(selfAxises)
+        proposals = deepcopy(selfAxises);
     else
-        proposals = [deepcopy(axisList[1])]
+        proposals = [deepcopy(nbAxises[1])]
     end
-    for i = 1:size(axisList,1)
+    for i = 1:size(nbAxises,1)
         merged = false
         for j = 1:size(proposals,1)
             if merged continue; end
@@ -81,143 +61,122 @@ function mergeAxis(axisList, axis)
             if proposals[j].class=="R"
                 vec1 = proposals[j].coordinate[:,1]
             end
-            vec2 = axisList[i].coordinate[:,2]
-            if axisList[i].class=="R"
-                vec2 = axisList[i].coordinate[:,1]
+            vec2 = nbAxises[i].coordinate[:,2]
+            if nbAxises[i].class=="R"
+                vec2 = nbAxises[i].coordinate[:,1]
             end
             dist = abs(vec2'*vec1);
             if dist[1] > 0.97
-                if (axisList[i].class != "R") && (proposals[j].class != "R")
-                    proposals[j].degree = lcm(axisList[i].degree, proposals[j].degree);
-                    proposals[j].degree = min(proposals[j].degree, 20)
+                # RR: duplicate, CC: merge degree, CR / RC: becomes Cnh group (D verify), copy coordinate from the C axis
+                if (nbAxises[i].class != "R") && (proposals[j].class != "R")
+                    proposals[j].degree = lcm(nbAxises[i].degree, proposals[j].degree);
                 end
-                if (axisList[i].class != proposals[j].class)
+                if (nbAxises[i].class != proposals[j].class)
                     if proposals[j].class=="R"
-                        proposals[j].coordinate = axisList[i].coordinate
+                        proposals[j] = deepcopy(nbAxises[i])
                     end
                     proposals[j].class = "D"
                 end
-            elseif dist[1] < 0.3
-                if (axisList[i].degree > proposals[j].degree) && (proposals[j].degree <= 2)
-                    temp = deepcopy(proposals[j])
-                    proposals[j] = deepcopy(axisList[i])
-                    axisList[i] = temp
-                end
-                if axisList[i].degree==2
-                    proposals[j].class="D"
-                elseif axisList[i].degree==-1 
-                    if proposals[j].degree==-1
-                        proposals[j].coordinate[:,2]=cross(vec1,vec2)
-                        proposals[j].coordinate[:,2]=proposals[j].coordinate[:,2] ./ norm(proposals[j].coordinate[:,2])
-                        proposals[j].coordinate[:,3]=vec1 ./ norm(vec1)
-                        proposals[j].coordinate[:,1]=cross(proposals[j].coordinate[:,2], proposals[j].coordinate[:,3])
-                        proposals[j]=Axis("C", 2, proposals[j].coordinate)
-                    else
-                        proposals[j].coordinate[:,3]=cross(vec1,vec2)
-                        proposals[j].coordinate[:,3]=proposals[j].coordinate[:,3] ./ norm(proposals[j].coordinate[:,3])
-                        proposals[j].coordinate[:,1]=cross(proposals[j].coordinate[:,2], proposals[j].coordinate[:,3])
-                    end
+            elseif (nbAxises[i].class == "R") && (proposals[j].class != "R") 
+                # from C to Cv, or D to Dh
+                prod = abs(vec2'*proposals[j].coordinate[:,1]);
+                clamp!(prod, 0, 1)
+                angle_err = acos(prod[1]) / 3.14159 * 180
+                while (angle_err > 90.0 / proposals[j].degree)  angle_err = angle_err - 180.0 / proposals[j].degree end
+                if (abs(angle_err)>10) merged=false end
+            elseif (nbAxises[i].class != "R") && (proposals[j].class == "R") 
+                # from C to Cv, or D to Dh
+                prod = abs(vec1'*nbAxises[i].coordinate[:,1]);
+                clamp!(prod, 0, 1)
+                angle_err = acos(prod[1]) / 3.14159 * 180
+                while (angle_err > 90.0 / nbAxises[i].degree)  angle_err = angle_err - 180.0 / nbAxises[i].degree  end
+                if (abs(angle_err)>10) 
+                    merged=false
                 else
-                    merged = false
+                    proposals[j] = deepcopy(nbAxises[i])
+                end
+            elseif (nbAxises[i].degree == 2) && (proposals[j].class != "R") 
+                # from C/D to D
+                prod = abs(vec2'*proposals[j].coordinate[:,3]);
+                clamp!(prod, 0, 1)
+                angle_err = acos(prod[1]) / 3.14159 * 180
+                while (angle_err > 90.0 / proposals[j].degree)  angle_err = angle_err - 180.0 / proposals[j].degree end
+                if (abs(angle_err)>10)
+                    merged=false
+                else
+                    proposals[j].class = "D"
+                end
+            elseif (nbAxises[i].class != "R") && (proposals[j].degree == 2)
+                # from C/D to D
+                prod = abs(vec1'*nbAxises[i].coordinate[:,3]);
+                clamp!(prod, 0, 1)
+                angle_err = acos(prod[1]) / 3.14159 * 180
+                while (angle_err > 90.0 / nbAxises[i].degree)  angle_err = angle_err - 180.0 / nbAxises[i].degree end
+                if (abs(angle_err)>10)
+                    merged=false
+                else
+                    proposals[j] = deepcopy(nbAxises[i])
                 end
             end
+            if !merged
+                # println(proposals[j])
+                # println(nbAxises[i])
+            end  
         end
         if !merged
-            push!(proposals, axisList[i])
+            push!(proposals, nbAxises[i])
         end
     end
     return proposals
 end
 
-for idx = 1:1  #size(models,1)-1
-#    md5 = models[idx];
-    md5 = ARGS[2]
-    println(md5);
-    #try
-        p = sortperm(vec(NNgraph[idx,:]));
-        sym_anchor = readSymmetry(synsetID, md5);
-        axisList = [];
-        if (p[end] > 0)
-            for n = 2:16
-                md5_1 = models[p[n]];
-                #try
-                    sym_neighbor = readSymmetry(synsetID, md5_1);
-                    #println(md5_1)
-                    #println(sym_neighbor)
-                    append!(axisList, sym_neighbor);
-                #catch err1
-                #    if !isa(err1, LoadError)
-                #        throw(err1)
-                #    end
-                #end
-            end
-        end
-        if !isempty(axisList)
-            PC = loadPC(synsetID, md5);
-            proposals= mergeAxis(axisList, sym_anchor);
-            println(axisList)
-            println(sym_anchor)
-            println(proposals)
-            logfile = open("Results/"*synsetID*"/"*md5*".log2", "w");
-            if size(proposals,1)==1
-                symtype, translate, coordinate = refineSym(proposals[1], proposals[1].coordinate, PC, logfile);
-            else
-                num_high_deg = 0
-                highest_deg = 1
-                highest_coordinate = proposals[1].coordinate
-                highest_symtype = "E"
-                highest_translate = zeros(3,1)
-                for i = 1:size(proposals,1)
-                    symtype, translate, coordinate = refineSym(proposals[i], proposals[i].coordinate, PC, logfile)
-                    println(symtype)
-                    println(coordinate)
-                    degree = tryparse(Int64, symtype[2:end]);
-                    if isnull(degree)
-                        degree = tryparse(Int64, symtype[2:end-1]);
-                    end
-                    if isnull(degree)
-                        degree = 1
-                    else
-                        degree = get(degree);
-                    end
-                    if degree > 2
-                        num_high_deg += 1
-                    end
-                    if degree > highest_deg
-                        highest_deg = degree
-                        highest_coordinate = coordinate
-                        highest_symtype = symtype
-                    end
-                    highest_translate += translate
-                    PC = PC .+ translate'
-                end
-                if num_high_deg > 1
-                    if highest_deg == 4
-                        symtype = "O"
-                    elseif highest_deg == 5
-                        symtype = "I"
-                    elseif highest_deg == 3
-                        symtype = "T"
-                    else
-                        symtype = "O3"
-                    end
-                else
-                    symtype = highest_symtype
-                end
-                translate = highest_translate
-                coordinate = highest_coordinate
-            end
-            close(logfile)
-            file = "Results/"*synsetID*"/"*md5*".sym3t_g"
-            saveSymmetry(file, symtype, translate, coordinate)
-        end
 
-    #catch err
-    #    log = open(synsetID*".errorlog", "a");
-    #    @printf(log, "%s\n", md5);
-    #    @printf(log, "%s\n", err);
-    #    close(log);
-    #end
+
+synsetID = ARGS[1];
+model_list = "./deduplicate_lists/"*synsetID*".txt";
+models = readall(model_list);
+models = split(models, '\n');
+size(models,1)
+
+graphFile = "./NNGraph/"*synsetID*".txt";
+NNgraph = readdlm(graphFile);
+size(NNgraph,1)
+
+
+for idx = 1:size(models,1)-1
+    md5 = models[idx];
+    println(md5);
+    p = sortperm(vec(NNgraph[idx,:]));
+    symType, translate, coordinate = readSymmetry(synsetID, md5);
+    self_sym = generateAxis(symType, translate, coordinate)
+    neighborList = [];
+    for n = 2:16
+        md5_1 = models[p[n]];
+        symType_n, translate_n, coordinate_n = readSymmetry(synsetID, md5_1);
+        sym_neighbor = generateAxis(symType_n, translate_n, coordinate_n)
+        append!(neighborList, sym_neighbor);
+    end
+    proposals= mergeAxis(neighborList, self_sym);
+    if !isempty(proposals)
+        Mesh = loadMesh(synsetID, md5);
+        Mesh.vertices = Mesh.vertices .- translate'
+        densityProposal = GetSampleDensityProposal(Mesh, 8000);
+        PC = SamplePoints(Mesh, densityProposal);
+        logfile = open("Results/"*synsetID*"/"*md5*".log_g", "w");
+        for i = 1:size(proposals,1)
+            symtype, degree, translate, coordinate = refineSym(proposals[i], proposals[i].coordinate, PC, logfile);
+            proposals[i].class = symtype[1:1]
+            if (symtype == "Cs") proposals[i].class="R" end
+            if (symtype[end]=='v') || (symtype[end]=='h') || (symtype[end]=='d')
+                proposals[i].class=proposals[i].class*symtype[end:end] 
+            end
+            proposals[i].degree = degree
+            proposals[i].coordinate = coordinate
+        end
+    end
+    if size(proposals, 1)>1
+        println(proposals)
+    end         
 
 end
 

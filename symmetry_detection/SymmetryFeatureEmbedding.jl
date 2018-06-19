@@ -6,6 +6,7 @@ push!(LOAD_PATH, "../../geometryprocessing/julia")
 @everywhere using MeshIO
 @everywhere using FileIO
 @everywhere using MyGeomUtils
+include("./io.jl")
 include("./symmetrySpectral.jl")
 include("./icp.jl")
 include("./refineAxis.jl")
@@ -68,26 +69,6 @@ include("./refineAxis.jl")
     #hist
 end
 
-@everywhere function D2Descriptor(points, numPair, lb=0, ub=2, numBin=40) 
-    distance=[]
-    numPoints = size(points,1)
-
-    for i = 1:numPair
-        v1 = rand(1:numPoints)
-        v2 = rand(1:numPoints)
-        d = norm(points[v2,:] - points[v1,:])
-        push!(distance,d)
-    end
-
-    interval = (ub - lb) / numBin + 1e-6
-    histogram = zeros(numBin,1)
-    for d in distance
-        idx = clamp(floor(Int, d/interval)+1, 1, numBin)
-        histogram[idx]+=1
-    end
-    histogram /= numPair
-    histogram
-end
 
 @everywhere function symLevel(symType)
     if symType=="E"
@@ -112,10 +93,9 @@ end
 
 @everywhere function detectSelfSymmetry(Mesh, log)
 
-    #mesh PCA and normalization
+    #mesh PCA
     face = Mesh.faces;
     Cov = zeros(3,3)
-    mcenter = zeros(3,1)
     totalarea = 0
     for f in face
         pt1 = vec(Mesh.vertices[f[1],:])
@@ -123,26 +103,20 @@ end
         pt3 = vec(Mesh.vertices[f[3],:])
         area = norm(cross(pt1-pt2,pt2-pt3))/2
         Cov = Cov + (pt1*pt1' + pt2*pt2' + pt3*pt3' + 0.5*(pt1*pt2' + pt1*pt3' + pt2*pt1' + pt2*pt3' + pt3*pt1' + pt3*pt2')).*area./6
-        mcenter = mcenter + area / 3 * (pt1+pt2+pt3)
         totalarea = totalarea + area
     end
-    mcenter = mcenter ./ totalarea
-    Cov = (Cov ./ totalarea) - mcenter * mcenter'
+    Cov = Cov ./ totalarea
     eigenval, eigenvec = eig(Cov)
     idx = sortperm(eigenval)
     eigenval = eigenval[idx]
     eigenvec = eigenvec[:,idx]
-    Mesh.vertices = Mesh.vertices .- mcenter'
-    diag = maximum(sum(.^(Mesh.vertices,2),2),1)
-    Mesh.vertices = Mesh.vertices ./ sqrt(diag)
-    eigenval = eigenval ./ (diag) 
+
     @printf(log, "%s\n", "Mesh PCA-eigenval-eigenvec(colume)")
     @printf(log, "%f %f %f\n", eigenval...)
     @printf(log, "%f %f %f\n", eigenvec[1,:]...)
     @printf(log, "%f %f %f\n", eigenvec[2,:]...)
     @printf(log, "%f %f %f\n", eigenvec[3,:]...)
-    println(maximum(Mesh.vertices, 1))
-    println(minimum(Mesh.vertices, 1))   
+   
     #fixed point and PCA
     densityProposal = GetSampleDensityProposal(Mesh, 8000)
     densepoints = SamplePoints(Mesh, densityProposal)
@@ -411,59 +385,22 @@ end
 
 @everywhere function main(synsetID, modelname)
     println(modelname)
-    model = load("/orions3-zfs/projects/haosu/ShapeNetCore2015Spring/ShapeNetCore.v1/" * synsetID * "/" * modelname * "/model.obj")
-    v= zeros(size(model.vertices,1),3)
-    for i = 1:size(model.vertices,1)
-        v[i,:]=[model.vertices[i][1], model.vertices[i][2], model.vertices[i][3]]
-    end
-    f = zeros(size(model.faces, 1),3)
-    for i = 1:size(model.faces,1)
-        f[i,:] = [model.faces[i][1]+1, model.faces[i][2]+1, model.faces[i][3]+1]
-    end
-    newMesh = BuildMesh(v,f)
-    vmin = minimum(newMesh.vertices, 1)
-    vmax = maximum(newMesh.vertices, 1)
-
-    center = ((vmax+vmin) * 0.5)
-    radius = norm(vmax-vmin) * 0.5
-    newMesh.vertices = (newMesh.vertices .- center) ./ radius;
+    newMesh = loadMesh(synsetID, modelname)
     logname = "Results/" * synsetID * "/" * modelname * ".log-n"
     fout = open(logname, "w")
     symType, canonical, translate, mcenter = detectSelfSymmetry(newMesh, fout)
     close(fout)
     filename = "Results/" * synsetID * "/" * modelname * ".sym3-n"
-    fout = open(filename, "w")
-    @printf(fout, "%s\n", symType)
-    @printf(fout, "%f %f %f\n", translate[:]...)
-    @printf(fout, "%f %f %f\n", canonical[1,:]...)
-    @printf(fout, "%f %f %f\n", canonical[2,:]...)
-    @printf(fout, "%f %f %f\n", canonical[3,:]...)
-    close(fout)
+    saveSymmetry(filename, symType, translate, canonical)
 end
 
 
 
-#synsetID = "02958343" 
-#println(synsetID)
-#models = readall("./deduplicate_lists/" * synsetID * ".txt")
-models = readall("tasklist.txt")
+synsetID = "02958343" 
+println(synsetID)
+models = readall("./deduplicate_lists/" * synsetID * ".txt")
 models = split(models, '\n')
-#models = ["7ae9c3f17c5f9c569284ac9fef3539eb"]
-models = [split(models[i], ' ') for i = 1:size(models,1)-1 ]
-synsets = [models[i][1] for i = 1:size(models,1)]
-models = [models[i][2] for i = 1:size(models,1)]
-#for i = size(models,1):-1:1
-#    if isfile("Results/"* synsets[i] * "/" * models[i] * ".sym3") && isfile("Results/"*synsets[i]*"/"*models[i]*".log")
-#        deleteat!(models, i)
-#        deleteat!(synsets, i)
-#    end
-#end
-#println(size(models))
-#shuffle!(models)
-#synsets = fill(synsetID, size(models,1))
+synsets = fill(synsetID, size(models,1))
 println(size(models,1))
-#for i = 1:size(models,1)
-#    main(synsets[i], models[i])
-#end
 pmap(main, synsets, models)
 
