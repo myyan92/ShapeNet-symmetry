@@ -54,9 +54,16 @@ function mergeAxis(nbAxises, selfAxises)
     end
     for i = 1:size(nbAxises,1)
         merged = false
+        if nbAxises[i].class=="E"
+            merged = true
+        end
         for j = 1:size(proposals,1)
             if merged continue; end
             merged = true
+            if proposals[j].class=="E"
+                proposals[j]=deepcopy(nbAxises[i])
+                continue
+            end
             vec1 = proposals[j].coordinate[:,2]
             if proposals[j].class=="R"
                 vec1 = proposals[j].coordinate[:,1]
@@ -145,7 +152,7 @@ size(NNgraph,1)
 
 for idx = 1:size(models,1)-1
     md5 = models[idx];
-    println(md5);
+    # println(md5);
     p = sortperm(vec(NNgraph[idx,:]));
     symType, translate, coordinate = readSymmetry(synsetID, md5);
     self_sym = generateAxis(symType, translate, coordinate)
@@ -163,19 +170,32 @@ for idx = 1:size(models,1)-1
         densityProposal = GetSampleDensityProposal(Mesh, 8000);
         PC = SamplePoints(Mesh, densityProposal);
         logfile = open("Results/"*synsetID*"/"*md5*".log_g", "w");
-        for i = 1:size(proposals,1)
-            symtype, degree, translate, coordinate = refineSym(proposals[i], proposals[i].coordinate, PC, logfile);
-            proposals[i].class = symtype[1:1]
-            if (symtype == "Cs") proposals[i].class="R" end
-            if (symtype[end]=='v') || (symtype[end]=='h') || (symtype[end]=='d')
-                proposals[i].class=proposals[i].class*symtype[end:end] 
+
+        for i = 1:3  # refine and merge multiple times to be accurate
+            for i = 1:size(proposals,1)
+                symtype, degree, translate, coordinate = refineSym(proposals[i], proposals[i].coordinate, PC, logfile);
+                proposals[i].class = symtype
+                if proposals[i].class == "Cs"
+                    proposals[i].class = "R"
+                elseif proposals[i].class[1]=='C' && proposals[i].class[end]=='h'
+                    proposals[i].class = "D"
+                else
+                    proposals[i].class = proposals[i].class[1:1]
+                end
+                proposals[i].degree = degree
+                proposals[i].coordinate = coordinate
             end
-            proposals[i].degree = degree
-            proposals[i].coordinate = coordinate
+            proposals= mergeAxis(proposals, [])
         end
+        close(logfile)
     end
     if size(proposals, 1)>1
-        println(proposals)
+        println(md5)
+    end
+    for i = 1:size(proposals,1)
+        symtype, degree, translate, coordinate = refineSym(proposals[i], proposals[i].coordinate, PC, logfile);
+        file = "Results/"*synsetID*"/"*md5*".sym3t_g$(i)"
+        saveSymmetry(file, symtype, translate, coordinate)
     end         
 
 end

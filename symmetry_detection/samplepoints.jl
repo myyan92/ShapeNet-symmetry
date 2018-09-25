@@ -13,11 +13,13 @@ end
 function ComputeMeshArea(vertices, faces)
     area = 0
     for f in faces
-        pt1 = [vertices[f[1]+1][1], vertices[f[1]+1][2], vertices[f[1]+1][3]]
-        pt2 = [vertices[f[2]+1][1], vertices[f[2]+1][2], vertices[f[2]+1][3]]
-        pt3 = [vertices[f[3]+1][1], vertices[f[3]+1][2], vertices[f[3]+1][3]]
-        A = cross(pt2 - pt1, pt3 - pt1)
-        area += 0.5 * norm(A)
+        p1 = vec(vertices[f[1], :])
+        for i = 2:(length(f)-1)
+            p2 = vec(vertices[f[i], :])
+            p3 = vec(vertices[f[i+1], :])
+            A = cross(p2 - p1, p3 - p1)
+            area += 0.5 * norm(A)
+        end
     end
     area
 end
@@ -34,10 +36,14 @@ function SamplePoints(vertices, faces, numPoints)
     
     points = []
     for f in faces
-        p1 = [vertices[f[1]+1][1], vertices[f[1]+1][2], vertices[f[1]+1][3]]
-        p2 = [vertices[f[2]+1][1], vertices[f[2]+1][2], vertices[f[2]+1][3]]
-        p3 = [vertices[f[3]+1][1], vertices[f[3]+1][2], vertices[f[3]+1][3]]
+        p1 = vertices[f[1], :]
+        p2 = vertices[f[2], :]
+        p3 = vertices[f[3], :]
         
+        if any(isnan(p1)) || any(isinf(p1)) || any(isnan(p2)) || any(isinf(p2)) || any(isnan(p3)) || any(isinf(p3))
+            continue
+        end
+
         area = ComputeFaceArea(p1, p2, p3)
         expectedSampleNum = area * densityProposal        
         actualSampleNum = floor(Int, expectedSampleNum)

@@ -176,7 +176,7 @@ end
     symtrans = []
     symscores = []
     for transform in candtrans
-        points_trans = transform * points' 
+        points_trans = transform * points'
         TR,TT,ER,t = icp(points', points_trans, 50, Minimize="point")
         transform = TR * transform
         if ER[end] < 0.025

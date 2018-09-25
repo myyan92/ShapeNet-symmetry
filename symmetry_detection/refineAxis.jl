@@ -1,10 +1,9 @@
-push!(LOAD_PATH, "../../geometryprocessing/julia")
 @everywhere using MeshIO
 @everywhere using FileIO
-@everywhere using MyGeomUtils
 include("./ConnectedComponent.jl")
 include("./symmetrySpectral.jl")
 include("./icp.jl")
+include("./samplepoints.jl")
 
 @everywhere function thresh_start()
     return 0.07
@@ -152,6 +151,7 @@ end
         @printf(log, "%s\n", "D reflect pass")
     end
     symType = ""
+    degree = min(degree, 20)
     if degree == 1 && isreflect
         if isempty(axis_t) 
             symType = "Cs"
@@ -161,7 +161,6 @@ end
             axis = reflectPose
             reflectPose = axis_t
             translate += translate_2
-            println(symType)
         end
         return vec(axis), vec(reflectPose), vec(translate), degree, symType
     elseif degree == 1
@@ -251,6 +250,7 @@ end
       coordinate[:,3] = coordinate[:,3] - dot(coordinate[:,3],coordinate[:,2]) .* coordinate[:,2]
       coordinate[:,3] = coordinate[:,3] ./ norm(coordinate[:,3])
       coordinate[:,1] = cross(coordinate[:,2], coordinate[:,3])
+      degree = min(degree, 20)
       if degree>1
         symtype = "C$degree"
         if (isreflect)

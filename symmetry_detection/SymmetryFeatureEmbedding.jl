@@ -1,16 +1,13 @@
 numCore = 10
 addprocs(numCore - 1)
 
-
-push!(LOAD_PATH, "../../geometryprocessing/julia")
 @everywhere using MeshIO
 @everywhere using FileIO
-@everywhere using MyGeomUtils
 include("./io.jl")
 include("./symmetrySpectral.jl")
 include("./icp.jl")
 include("./refineAxis.jl")
-
+include("./samplepoints.jl")
 
 @everywhere function estimateDegree(points, axis)
     rbin = 6
@@ -41,21 +38,15 @@ include("./refineAxis.jl")
     radi_q = min(radi_q, rbin)
     angle_q = floor(Int32, ang ./ 2 ./ pi .* abin) + 1
     angle_q = min(angle_q, abin)
-    #hist = zeros(abin, 2*hbin, rbin)
     rmax = zeros(abin, 2*hbin)
     for i in 1:size(height_q, 1)
-    #    hist[angle_q[i], height_q[i], radi_q[i]]+=1
         rmax[angle_q[i], height_q[i]] = max(radi[i], rmax[angle_q[i], height_q[i]])
     end
-    #hist = hist ./ size(points, 1)
-    #Fhist = fft(hist, 1)
-    #hist = abs(Fhist)
     Frmax = fft(rmax, 1)
     rmax = abs(Frmax)
     rphi = zeros(abin, 2*hbin)
     rphi = angle(Frmax)
     maxval, Descriptor = findmax(rmax[2:end,:],1)
-    #maxval, Descriptor = findmax(hist[2:end,:,:],1)
     Descriptor = (Descriptor-1) .% (abin-1) +1
     Descriptor[maxval .< 0.55] = 20
     Descriptor[Descriptor .> 20] = 20
@@ -66,7 +57,6 @@ include("./refineAxis.jl")
         maxpos[:,i] = cos(phase[i]) * ex + sin(phase[i]) * ey
     end
     Descriptor, maxpos
-    #hist
 end
 
 
@@ -118,8 +108,7 @@ end
     @printf(log, "%f %f %f\n", eigenvec[3,:]...)
    
     #fixed point and PCA
-    densityProposal = GetSampleDensityProposal(Mesh, 8000)
-    densepoints = SamplePoints(Mesh, densityProposal)
+    densepoints = SamplePoints(Mesh.vertices, Mesh.faces, 8000)
     #points = SamplePoints_Voxelize(densepoints, [-1 -1 -1], [1 1 1], 0.025)
     points = densepoints
     desc = @time(ShapeContext(points, 1.5, 6,6,128))
@@ -379,7 +368,7 @@ end
             canonical_dir[:,m]=-canonical_dir[:,m]
         end
     end
-    symType, canonical_dir, translate, mcenter
+    symType, canonical_dir, translate
 end
 
 
@@ -388,13 +377,11 @@ end
     newMesh = loadMesh(synsetID, modelname)
     logname = "Results/" * synsetID * "/" * modelname * ".log-n"
     fout = open(logname, "w")
-    symType, canonical, translate, mcenter = detectSelfSymmetry(newMesh, fout)
+    symType, canonical, translate = detectSelfSymmetry(newMesh, fout)
     close(fout)
     filename = "Results/" * synsetID * "/" * modelname * ".sym3-n"
     saveSymmetry(filename, symType, translate, canonical)
 end
-
-
 
 synsetID = "02958343" 
 println(synsetID)
@@ -403,4 +390,3 @@ models = split(models, '\n')
 synsets = fill(synsetID, size(models,1))
 println(size(models,1))
 pmap(main, synsets, models)
-

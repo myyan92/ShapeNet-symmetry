@@ -1,3 +1,11 @@
+@everywhere type MeshType
+  vertices::Array
+  faces::Array
+
+  MeshType() = new([], [])
+  MeshType(vertices, faces) = new(vertives, faces)
+end
+
 @everywhere function loadMesh(synsetID, modelname)
     #mesh normalization
     model = load("/orions3-zfs/projects/haosu/ShapeNetCore2015Spring/ShapeNetCore.v1/" * synsetID * "/" * modelname * "/model.obj");
@@ -9,7 +17,12 @@
     for i = 1:size(model.faces,1)
         f[i,:] = [model.faces[i][1]+1, model.faces[i][2]+1, model.faces[i][3]+1];
     end
-    newMesh = BuildMesh(v,f);
+    newMesh = MeshType()
+    newMesh.vertices = v
+    newMesh.faces = []
+    for i = 1:size(f, 1)
+        push!(newMesh.faces, Array{Int}(f[i, :]))
+    end
 
     face = newMesh.faces;
     mcenter = zeros(3,1);
