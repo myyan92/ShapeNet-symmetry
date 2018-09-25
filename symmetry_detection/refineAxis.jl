@@ -1,16 +1,18 @@
-@everywhere using MeshIO
-@everywhere using FileIO
+push!(LOAD_PATH, pwd())
+using MeshIO
+using FileIO
+using SamplePointsUtil
 include("./ConnectedComponent.jl")
 include("./symmetrySpectral.jl")
 include("./icp.jl")
-include("./samplepoints.jl")
+#include("./samplepoints.jl")
 
 @everywhere function thresh_start()
     return 0.07
 end
 
 @everywhere function thresh_end()
-    return 0.03
+    return 0.035
 end
 
 #axis is the normal of the reflection plane. 
@@ -103,7 +105,7 @@ end
             TR,TT,ER,t = icp(points', points_trans, 50, Minimize="point", WorstReject=0.1)
             axis_t, degree_t, reflect_t = matrix2axis(TR*baserotation)
             if degree_t != 0
-                if dot(vec(axis_f), vec(axis_t)) < 0 axis_t = -axis_t; end
+                if dot(vec(axis), vec(axis_t)) < 0 axis_t = -axis_t; end
                 translate = TT - dot(TT, axis_t)/norm(axis_t) * axis_t
                 translate = translate + cross(axis_t, translate)./norm(axis_t)./tan(degree_t/2)            
                 translate_f -= translate./2

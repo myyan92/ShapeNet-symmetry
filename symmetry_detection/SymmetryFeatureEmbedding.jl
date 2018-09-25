@@ -1,13 +1,15 @@
+push!(LOAD_PATH, pwd())
+
 numCore = 10
 addprocs(numCore - 1)
 
 @everywhere using MeshIO
 @everywhere using FileIO
+@everywhere using SamplePointsUtil
 include("./io.jl")
 include("./symmetrySpectral.jl")
 include("./icp.jl")
 include("./refineAxis.jl")
-include("./samplepoints.jl")
 
 @everywhere function estimateDegree(points, axis)
     rbin = 6
@@ -81,6 +83,35 @@ end
     end
 end 
 
+@everywhere function get_canonical(reflectNormal, rotationAxis, reflectPose, symType)
+    canonical_dir = eye(3)
+    if symType=="E"
+        return eye(3)
+    elseif symType=="Cs"
+        if reflectNormal==nothing
+            reflectNormal = cross(rotationAxis, reflectPose)
+            reflectNormal /= norm(reflectNormal)
+        end
+        canonical_dir[:,3] = reflectNormal
+        temp = cross(canonical_dir[:,2], canonical_dir[:,3])
+        if norm(temp) > 0.2
+            canonical_dir[:,1] = temp / norm(temp)
+            canonical_dir[:,2] = cross(canonical_dir[:,3], canonical_dir[:,1])
+        else
+            canonical_dir[:,2] = cross(canonical_dir[:,3], canonical_dir[:,1])
+            canonical_dir[:,2] /= norm(canonical_dir[:,2])
+            canonical_dir[:,1] = cross(canonical_dir[:,2], canonical_dir[:,3])
+        end
+    else
+        canonical_dir[:,2] = rotationAxis
+        canonical_dir[:,1] = reflectPose
+        canonical_dir[:,1] -= canonical_dir[:,2]*dot(canonical_dir[:,2],canonical_dir[:,1])
+        canonical_dir[:,1] /= norm(canonical_dir[:,1])
+        canonical_dir[:,3] = cross(canonical_dir[:,1],canonical_dir[:,2])
+    end
+    return canonical_dir
+end
+
 @everywhere function detectSelfSymmetry(Mesh, log)
 
     #mesh PCA
@@ -109,7 +140,6 @@ end
    
     #fixed point and PCA
     densepoints = SamplePoints(Mesh.vertices, Mesh.faces, 8000)
-    #points = SamplePoints_Voxelize(densepoints, [-1 -1 -1], [1 1 1], 0.025)
     points = densepoints
     desc = @time(ShapeContext(points, 1.5, 6,6,128))
     dists = pairwise(Euclidean(), desc')
@@ -137,7 +167,7 @@ end
 
     #suggest promising symmetry
     symType = "E"
-    canonical_dir = eigenvec
+    canonical_dir = eye(3)
     translate = zeros(3,1)
     if val[1] > 0.001
         #no symmetry, return
@@ -152,18 +182,10 @@ end
             @printf(log, "%s\n", "reflection test failed")
         else
             @printf(log, "%s\n", "reflection test pass")
-            axis2 = cross(dir[:,3], axis_f)
-            axis2 = axis2 ./ norm(axis2)
-            axis3 = cross(axis_f, axis2)
-            Cov_2 = vcat(axis2', axis3') * Cov * hcat(axis2, axis3)
-            val2,dir2 = eig(Cov_2)
-            dir2 = dir2[:, sortperm(val2)]
-            axis2_f=hcat(axis2, axis3)*dir2[:,1] 
-            axis3_f=hcat(axis2, axis3)*dir2[:,2]
-            canonical_dir = hcat(axis_f, axis2_f, axis3_f)
             translate = translate_f
             symType = "Cs"
         end
+        canonical_dir = get_canonical(axis_f, nothing, nothing, symType)
     elseif val[3] > 0.001
         #rotation axis = third eigenvector
         axis = dir[:,3]
@@ -194,11 +216,6 @@ end
                 isreflect_f = isreflect
             end
         end
-        canonical_dir[:,2] = axis_f
-        canonical_dir[:,3] = reflectPose
-        canonical_dir[:,3] -= canonical_dir[:,2]*dot(canonical_dir[:,2],canonical_dir[:,3])
-        canonical_dir[:,3] /= norm(canonical_dir[:,3])
-        canonical_dir[:,1] = cross(canonical_dir[:,2],canonical_dir[:,3]) 
         translate = translate_f
         symType = "C$(degree_f)"
         if isreflect_f
@@ -210,6 +227,7 @@ end
                 symType = "E"
             end
         end
+        canonical_dir = get_canonical(nothing, axis_f, reflectPose, symType)
     elseif val[3] <= 0.001
         # higher order symmetry
         if eigenval[1]/eigenval[2] < 0.9 && eigenval[2]/eigenval[3] < 0.9
@@ -217,11 +235,7 @@ end
             axis = eigenvec[:,1]
             reflectPose = eigenvec[:,2]
             axis_f, reflectPose, translate, degree_f, symType = refineAxis_D(densepoints, axis, 2, reflectPose, log)
-            canonical_dir[:,2] = axis_f
-            canonical_dir[:,3] = reflectPose
-            canonical_dir[:,3] -= canonical_dir[:,2]*dot(canonical_dir[:,2],canonical_dir[:,3])
-            canonical_dir[:,3] /= norm(canonical_dir[:,3])
-            canonical_dir[:,1] = cross(canonical_dir[:,2],canonical_dir[:,3])
+            canonical_dir = get_canonical(nothing, axis_f, reflectPose, symType)
 
         elseif eigenval[1]/eigenval[2] < 0.9 || eigenval[2]/eigenval[3] < 0.9
             @printf(log, "%s\n", "D group axis")
@@ -255,11 +269,7 @@ end
                     symType = symType_t
                 end
             end
-            canonical_dir[:,2] = axis_f
-            canonical_dir[:,3] = reflectPose
-            canonical_dir[:,3] -= canonical_dir[:,2]*dot(canonical_dir[:,2],canonical_dir[:,3])
-            canonical_dir[:,3] /= norm(canonical_dir[:,3])
-            canonical_dir[:,1] = cross(canonical_dir[:,2],canonical_dir[:,3]) 
+            canonical_dir = get_canonical(nothing, axis_f, reflectPose, symType)
 
         else
             @printf(log, "%s\n", "calling symSpectral")
@@ -298,26 +308,19 @@ end
                         if degree_f > 2
                             num_high_degree += 1
                         end
-                        println(degree_f)
-                        println(axis_f)
                         translate = translate .+ translate_f
                         densepoints = densepoints .+ translate_f'
                         if (degree_f > highest_deg) || (degree_f == highest_deg && symLevel(symType_f) > symLevel(symType)) 
                             highest_deg = degree_f
                             symType = symType_f
-                            canonical_dir[:,2] = axis_f
-                            canonical_dir[:,3] = reflectPose
-                            canonical_dir[:,3] -= canonical_dir[:,2]*dot(canonical_dir[:,2],canonical_dir[:,3])
-                            canonical_dir[:,3] /= norm(canonical_dir[:,3])
-                            canonical_dir[:,1] = cross(canonical_dir[:,2],canonical_dir[:,3])
-                            println(canonical_dir)
+                            canonical_dir = get_canonical(nothing, axis_f, reflectPose_f, symType)
                         elseif (degree_f == highest_deg) && (symLevel(symType_f) == symLevel(symType))
                             if (highest_deg == 5) && dot(axis_f, canonical_dir[:,2]) < 0
                                 axis_f = -axis_f
                             end
-                            canonical_dir[:,3] = axis_f - canonical_dir[:,2] .* dot(canonical_dir[:,2], axis_f)
-                            canonical_dir[:,3] /= norm(canonical_dir[:,3])
-                            canonical_dir[:,1] = cross(canonical_dir[:,2],canonical_dir[:,3])
+                            canonical_dir[:,1] = axis_f - canonical_dir[:,2] .* dot(canonical_dir[:,2], axis_f)
+                            canonical_dir[:,1] /= norm(canonical_dir[:,1])
+                            canonical_dir[:,3] = cross(canonical_dir[:,1],canonical_dir[:,2])
 
                         end
                     end
@@ -327,24 +330,15 @@ end
                         if reflections_f[i] == -1
                             axis_f, translate_f = refineAxis_reflect(densepoints, axises_f[i], log)
                             if !isempty(axis_f)
-                                axis2 = cross(dir[:,3], axis_f)
-                                axis2 = axis2 ./ norm(axis2)
-                                axis3 = cross(axis_f, axis2)
-                                Cov_2 = vcat(axis2', axis3') * Cov * hcat(axis2, axis3)
-                                val2,dir2 = eig(Cov_2)
-                                dir2 = dir2[:, sortperm(val2)]
-                                axis2_f=hcat(axis2, axis3)*dir2[:,1] 
-                                axis3_f=hcat(axis2, axis3)*dir2[:,2]
-                                canonical_dir = hcat(axis_f, axis2_f, axis3_f)
                                 translate = translate_f
                                 symType = "Cs"
+                                canonical_dir = get_canonical(axis_f, nothing, nothing, symType)
                             end
                         end
                     end
                 end
 
                 if (num_high_degree > 1)
-                    println("special group")
                     if highest_deg == 5
                         symType = "I"
                     elseif highest_deg == 4
@@ -356,16 +350,7 @@ end
                         canonical_dir = eye(3)
                     end
                 end
-                println(symType)
-                println(canonical_dir)
             end                
-        end
-    end
-    points_new = points * canonical_dir
-    thirdMoment = sum(points_new.^3, 1)
-    for m = 1:3
-        if thirdMoment[m]<0 && symLevel(symType) < 6
-            canonical_dir[:,m]=-canonical_dir[:,m]
         end
     end
     symType, canonical_dir, translate
@@ -375,15 +360,15 @@ end
 @everywhere function main(synsetID, modelname)
     println(modelname)
     newMesh = loadMesh(synsetID, modelname)
-    logname = "Results/" * synsetID * "/" * modelname * ".log-n"
+    logname = "Results/" * synsetID * "/" * modelname * ".log"
     fout = open(logname, "w")
     symType, canonical, translate = detectSelfSymmetry(newMesh, fout)
     close(fout)
-    filename = "Results/" * synsetID * "/" * modelname * ".sym3-n"
+    filename = "Results/" * synsetID * "/" * modelname * ".sym3"
     saveSymmetry(filename, symType, translate, canonical)
 end
 
-synsetID = "02958343" 
+synsetID = ARGS[1]
 println(synsetID)
 models = readall("./deduplicate_lists/" * synsetID * ".txt")
 models = split(models, '\n')
