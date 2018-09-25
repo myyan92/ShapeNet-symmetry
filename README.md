@@ -10,6 +10,3 @@ Pkg.add("Distances")
 
 Pkg.add("NearestNeighbors")
 
-
-Upload the MyGeomUtil.jl file somewhere. Update the push(LOAD_PATH) line.
-
