@@ -1,5 +1,9 @@
+module SamplePointsUtil
+
 using FileIO
 using MeshIO
+
+export GetSampleDensityProposal, SamplePoints
 
 function ComputeFaceArea(p1, p2, p3)
     @assert length(p1) == 3 && length(p2) == 3 && length(p3) == 3    
@@ -81,3 +85,7 @@ function SamplePoints(vertices, faces, numPoints)
     end
     retPoints
 end
+
+
+
+end # module end
