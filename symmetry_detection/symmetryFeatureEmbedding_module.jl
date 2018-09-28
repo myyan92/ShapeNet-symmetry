@@ -1,7 +1,7 @@
 push!(LOAD_PATH, pwd())
 
-numCore = 10
-addprocs(numCore - 1)
+# numCore = 10
+# addprocs(numCore - 1)
 
 @everywhere using MeshIO
 @everywhere using FileIO
