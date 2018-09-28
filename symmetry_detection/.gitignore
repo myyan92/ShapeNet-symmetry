@@ -1,5 +1,2 @@
-# dublicate file lists
-./deduplicate_lists/**
-
-# dublicate file lists
-./Results/**
+# results
+./symmetry_detection/Results/**
