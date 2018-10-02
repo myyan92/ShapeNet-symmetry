@@ -1,3 +1,4 @@
+module SymmetrySpectralLib
 
 using Distances
 using NearestNeighbors
@@ -5,7 +6,9 @@ using ICPUtil
 using TransformUtil
 using ShapeContextLib
 
-@everywhere function calculateTransformation(reflection, point_x1, point_x2, point_y1, point_y2)
+export refineTransform, processSymmetry, symmetrySpectral
+
+function calculateTransformation(reflection, point_x1, point_x2, point_y1, point_y2)
     point_x = point_x1 ./ norm(point_x1)
     point_y = point_y1 ./ norm(point_y1)
     diff_x = point_x2 - point_x .* (point_x2 * point_x')
@@ -22,7 +25,7 @@ using ShapeContextLib
     transy' * transx
 end 
 
-@everywhere function refineTransform(candtrans, points)
+function refineTransform(candtrans, points)
     symtrans = []
     symscores = []
     for transform in candtrans
@@ -38,7 +41,7 @@ end
     symtrans, symscores
 end
 
-@everywhere function processSymmetry(symtrans, symscores)
+function processSymmetry(symtrans, symscores)
     axises = []
     angles = []
     reflections = []
@@ -105,10 +108,6 @@ end
         end
     end
 
-    #print(axises_f)
-    #print(angles_f)
-    #print(reflection_f)
-
     angles_gt = Array(Any,0)
     push!(angles_gt, [0])
     push!(angles_gt, [0, pi])
@@ -138,7 +137,7 @@ end
     axises_f, degree_f, reflection_f
 end
 
-@everywhere function symmetrySpectral(points::Array{Float64}, desc::Array{Float64})
+function symmetrySpectral(points::Array{Float64}, desc::Array{Float64})
     if isempty(desc) || size(desc,1) != size(points,1)
         desc = ShapeContext(points, 1.5, 6,6,128)
     end
@@ -154,9 +153,6 @@ end
     validpairs = (dists .< 0.15) & (pointdists .> 0.1)
     istrue(x) = x==true
     pairidx = find(istrue, validpairs)
-    dists = nothing # release large memory.
-    pointdists = nothing
-    gc()
     if size(pairidx,1) < 200
         println("too little matching pairs, stop");
         return 0;
@@ -197,3 +193,6 @@ end
 
     candtrans
 end
+
+
+end # module end

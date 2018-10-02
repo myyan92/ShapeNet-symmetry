@@ -1,23 +1,28 @@
+module RefineAxisLib
+
 push!(LOAD_PATH, pwd())
 
 using MeshIO
 using FileIO
 using SamplePointsUtil
 using ICPUtil
-include("./ConnectedComponent.jl")
-include("./symmetrySpectral.jl")
+using TransformUtil
+#include("./ConnectedComponent.jl")
+#include("./symmetrySpectral.jl")
 
-@everywhere function thresh_start()
+export refineAxis_reflect, refineAxis_C, refineAxis_D, refineSym
+
+function thresh_start()
     return 0.1
 end
 
-@everywhere function thresh_end()
+function thresh_end()
     return 0.03
 end
 
 #axis is the normal of the reflection plane. 
 #return refined axis or none if not a reflection plane.
-@everywhere function refineAxis_reflect(points, axis, log)
+function refineAxis_reflect(points, axis, log)
     @printf(log, "%s\n", "refine_reflect:")
     transform = axis2matrix(axis, -1)
     points_trans = transform * points'
@@ -34,7 +39,7 @@ end
 
 #axis is the rotation axis
 #reflectPose and axis forms one of the reflection plane
-@everywhere function refineAxis_C(points, axis, degree, reflectPose, log)
+function refineAxis_C(points, axis, degree, reflectPose, log)
     @printf(log, "%s\n", "refine_C:")
     transform = axis2matrix(axis, degree)
     baserotation = transform
@@ -139,7 +144,7 @@ end
     vec(axis_f), vec(reflectPose_f), vec(translate_f), degree_f, isreflect
 end
 
-@everywhere function refineAxis_D(points, axis, degree, reflectPose, log)
+function refineAxis_D(points, axis, degree, reflectPose, log)
     @printf(log, "%s\n", "refine_D:")
     axis, reflectPose, translate, degree, isreflect = refineAxis_C(points, axis, degree, reflectPose, log)
     @printf(log, "C degree %d, ", degree)
@@ -226,7 +231,7 @@ type Axis
     coordinate::Array{Float64, 2}
 end
 
-@everywhere function refineSym(proposal, coordinate, points, log)
+function refineSym(proposal, coordinate, points, log)
     if (proposal.class == "E")
       translate = zeros(3,1)
       symtype = "E"
@@ -277,3 +282,4 @@ end
 end
 
 
+end # module end

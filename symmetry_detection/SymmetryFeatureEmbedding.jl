@@ -5,12 +5,15 @@ addprocs(numCore - 1)
 
 @everywhere using MeshIO
 @everywhere using FileIO
+@everywhere using Distances
 @everywhere using SamplePointsUtil
 @everywhere using IOUtil
 @everywhere using ICPUtil
 @everywhere using ShapeContextLib
-include("./symmetrySpectral.jl")
-include("./refineAxis.jl")
+@everywhere using RefineAxisLib
+@everywhere using SymmetrySpectralLib
+#include("./symmetrySpectral.jl")
+#include("./refineAxis.jl")
 
 @everywhere function estimateDegree(points, axis)
     rbin = 6
@@ -157,12 +160,6 @@ end
     for t = 1:10
         Xs = dists * Xs
     end
-    dists = nothing # clear and wait for garbage collection
-    gc()
-    #pygui(true)
-    #figure()
-    #scatter3D(points[:,1], points[:,2], points[:,3], s=40, c="b")
-    #scatter3D(Xs[:,1], Xs[:,2], Xs[:,3], s=70, c="r")
     Xs_c = mean(Xs, 1)
     Cov = Xs'*Xs./size(Xs, 1) - Xs_c'*Xs_c
     val, dir = eig(Cov)
