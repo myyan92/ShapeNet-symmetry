@@ -44,6 +44,44 @@ end
 end
 
 
+@everywhere function loadMesh_v2(filename)
+    #mesh normalization
+    model = load(filename);
+    v= zeros(size(model.vertices,1),3);
+    for i = 1:size(model.vertices,1)
+        v[i,:]=[model.vertices[i][1], model.vertices[i][2], model.vertices[i][3]];
+    end
+    f = zeros(size(model.faces, 1),3);
+    for i = 1:size(model.faces,1)
+        f[i,:] = [model.faces[i][1]+1, model.faces[i][2]+1, model.faces[i][3]+1];
+    end
+    newMesh = MeshType()
+    newMesh.vertices = v
+    newMesh.faces = []
+    for i = 1:size(f, 1)
+        push!(newMesh.faces, Array{Int}(f[i, :]))
+    end
+
+    face = newMesh.faces;
+    mcenter = zeros(3,1);
+    totalarea = 0;
+    for f in face
+        pt1 = vec(newMesh.vertices[f[1],:]);
+        pt2 = vec(newMesh.vertices[f[2],:]);
+        pt3 = vec(newMesh.vertices[f[3],:]);
+        area = norm(cross(pt1-pt2,pt2-pt3))/2;
+        mcenter = mcenter + area / 3 * (pt1+pt2+pt3);
+        totalarea = totalarea + area;
+    end
+    mcenter = mcenter ./ totalarea;
+    newMesh.vertices = newMesh.vertices .- mcenter';
+    diag = maximum(sum(.^(newMesh.vertices,2),2),1);
+    newMesh.vertices = newMesh.vertices ./ sqrt(diag);
+
+    return newMesh
+end
+
+
 @everywhere function saveSymmetry(filename, symType, translate, coordinate)
     fout = open(filename, "w")
     @printf(fout, "%s\n", symType)

@@ -8,25 +8,32 @@ addprocs(numCore - 1)
 include("./io.jl")
 include("./symmetryFeatureEmbedding_module.jl")
 
+const path2obj = "/orions4-zfs/projects/jyau/SymmDetProject/testing/Minhyuk-style-OBJ/"
+const path2results = "/orions4-zfs/projects/anastasiad/ShapeNet-symmetry/Results/03001627/"
 
-@everywhere function main(synsetID, modelname)
-    println(modelname)
-    newMesh = loadMesh(synsetID, modelname)
-    logname = "Results/" * synsetID * "/" * modelname * ".log"
+@everywhere function main(path2obj, modelname)
+	for partnum = 1:50
+		filename = path2obj * modelname * "/" * string(partnum) * ".obj"
+        if (!isfile(filename))
+        	break
+        end
+    end
+    println(filename)
+    newMesh = loadMesh_v2(filename)
+    logname = "Results/" * synsetID * "/" * modelname * "_" * string(partnum) * ".log"
     fout = open(logname, "w")
     symType, canonical, translate = detectSelfSymmetry(newMesh, fout)
     close(fout)
-    filename = "Results/" * synsetID * "/" * modelname * ".sym3"
-    saveSymmetry(filename, symType, translate, canonical)
+    symname = "Results/" * synsetID * "/" * modelname * "_" * string(partnum) * ".sym"
+    saveSymmetry(symname, symType, translate, canonical)
 end
 
 # synsetID = ARGS[1]
-synsetID = "02958343"
+synsetID = "03001627"
 println(synsetID)
 models = readall("./deduplicate_lists/" * synsetID * ".txt")
 models = split(models, '\n')
-models = [models[1]]
-synsets = fill(synsetID, size(models,1))
+#path2obj = fill(path2obj, size(models,1))
 println(size(models,1))
-# pmap(main, synsets, models)
-main(synsets[1],models[1])
+# pmap(main, path2obj, models)
+main(path2obj[1],models[1])
