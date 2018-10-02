@@ -13,7 +13,7 @@ const path2results = "/orions4-zfs/projects/anastasiad/ShapeNet-symmetry/Results
 
 @everywhere function main(path2obj, modelname)
 	for partnum = 0:50
-		filename = path2obj * modelname * "/" * "$partnum.obj"
+		filename = "/orions4-zfs/projects/jyau/SymmDetProject/testing/Minhyuk-style-OBJ/" * modelname * "/" * "$partnum.obj"
         if (!isfile(filename))
         	break
         end
