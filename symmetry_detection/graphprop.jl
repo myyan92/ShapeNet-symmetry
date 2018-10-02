@@ -1,4 +1,4 @@
-include("./io.jl")
+using IOUtil
 include("./refineAxis.jl")
 
 function generateAxis(symType, translate, coordinate)

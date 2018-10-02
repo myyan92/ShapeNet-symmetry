@@ -6,7 +6,7 @@ addprocs(numCore - 1)
 @everywhere using MeshIO
 @everywhere using FileIO
 @everywhere using SamplePointsUtil
-include("./io.jl")
+@everywhere using IOUtil
 include("./symmetrySpectral.jl")
 include("./icp.jl")
 include("./refineAxis.jl")
@@ -363,6 +363,9 @@ end
 
 @everywhere function main(synsetID, modelname)
     println(modelname)
+    if !isdir("Results/"*synsetID)
+        mkpath("Results/"*synsetID)
+    end
     newMesh = loadMesh(synsetID, modelname)
     logname = "Results/" * synsetID * "/" * modelname * ".log"
     fout = open(logname, "w")
@@ -384,4 +387,5 @@ pop!(lines)
 synsets = [split(l, ' ')[1] for l in lines]
 models = [split(l, ' ')[2] for l in lines]
 println(size(models,1))
-pmap(main, synsets, models)
+#pmap(main, synsets, models)
+main(synsets[1], models[1])
