@@ -3,18 +3,44 @@ using MeshIO
 using FileIO
 using Distances
 using NearestNeighbors
-@everywhere include("./io.jl")
-@everywhere include("./icp.jl")
-@everywhere include("./utils.jl")
+@everywhere include("icp.jl")
+@everywhere include("utils.jl")
+
+function XYZToZRT(point, ex, ey, ez)
+    x = point[1]*ex[1] + point[2]*ex[2] + point[3]*ex[3]
+    y = point[1]*ey[1] + point[2]*ey[2] + point[3]*ey[3]
+    z = point[1]*ez[1] + point[2]*ez[2] + point[3]*ez[3]
+    z = abs(z)
+    theta = atan2(x, y)
+    if theta < 0.0 theta += 2*pi end
+    radius = sqrt(x*x + y*y)
+    return z, radius, theta
+end
+
+function discretize!(dest, x, bin_size)
+    # Discretize a 1d array elementwise by floor(x, bin_size) + 1.
+    for i = 1:size(x, 1)
+        dest[i] = floor(Int32, x[i] / bin_size) + 1
+    end
+    return nothing
+end
 
 #shape context descriptor
 @everywhere function ShapeContext(points, radius=0.6, rbin=5, hbin=5, abin=128)
     Descriptor = zeros(size(points, 1), rbin*hbin*abin)
     points_temp = zeros(size(points, 1),3)
+    r = zeros(size(points, 1),1)
+    height = zeros(size(points, 1),1)
+    radi = zeros(size(points, 1),1)
+    angle = zeros(size(points, 1),1)
+    height_q = zeros(Int32, size(points, 1),1)
+    radi_q = zeros(Int32, size(points, 1),1)
+    angle_q = zeros(Int32, size(points, 1),1)
+    hist = zeros(abin, hbin, rbin)
+    Fhist = zeros(Complex64, abin, hbin, rbin)
     for p = 1:size(points, 1)
-        points_temp = broadcast(-, points, points[p, :])
-        r = sqrt(sum(points_temp.^2, 2))
-        points_temp = points_temp[0.02 .< r .< radius ,:]
+        broadcast!(-, points_temp, points, sub(points, p, :))
+
         ez = points[p,:] ./ norm(points[p,:])
         ex = cross(Float64[0,0,1], vec(ez))
         if norm(ex)<0.001
@@ -23,33 +49,32 @@ using NearestNeighbors
             ex = ex ./ norm(ex)
         end
         ey = cross(vec(ez), ex)
-        height = points_temp * ez'
-        inplane = points_temp - height * ez
-        height = abs(height)
-        radi = sqrt(sum(inplane.^2, 2))
-        inplane = broadcast(./, inplane, radi)
-        cosangle = inplane * ex
-        cosangle = max(cosangle, -1+1e-10)
-        cosangle = min(cosangle, 1-1e-10)
-        angle = acos(cosangle)
-        reflect = inplane * ey
-        f_reflect(x) = x<0
-        idx = find(f_reflect, reflect)
-        angle[idx] = broadcast(+, 2*pi, -angle[idx])
-        height_q = floor(Int32, height./ radius .* hbin) + 1
-        height_q = min(height_q, hbin)
-        radi_q = floor(Int32, radi ./ radius .* rbin) + 1
-        radi_q = min(radi_q, rbin)
-        angle_q = floor(Int32, angle ./ 2 ./ pi .* abin) + 1
-        angle_q = min(angle_q, abin)
-        hist = zeros(abin, hbin, rbin)
-        for i in 1:size(height_q, 1)
-            hist[angle_q[i], height_q[i], radi_q[i]]+=1
+        
+        for i = 1:size(points, 1)
+            r[i] = sqrt(points_temp[i,1]^2+points_temp[i,2]^2+points_temp[i,3]^2)
+            height[i], radi[i], angle[i] = XYZToZRT(sub(points_temp, i, :), ex, ey, ez)
         end
-        hist = hist ./ size(points_temp, 1)
-        Fhist = fft(hist, 1)
-        hist = abs(Fhist)
-        Descriptor[p, :] = hist[:]
+
+        discretize!(height_q, height,  radius/hbin)
+        discretize!(radi_q, radi, radius/rbin)
+        discretize!(angle_q, angle,  2*pi/abin)
+
+        for i in eachindex(hist) hist[i]=0 end
+        count = 0
+        for i = 1:size(points_temp, 1)
+            if r[i] > 0.02 && r[i] < radius && height_q[i] <= hbin && angle_q[i] <= abin && radi_q[i] <= rbin
+                hist[angle_q[i], height_q[i], radi_q[i]] += 1
+                count += 1
+            end
+        end
+        for i in eachindex(hist)
+            Fhist[i] = complex(hist[i] / count)
+        end
+        fft!(Fhist, 1)
+        for i in eachindex(Fhist)
+            hist[i] = abs(Fhist[i])
+        end
+        setindex!(Descriptor, hist, p, :)  # fast way of doing Descriptor[p,:]=hist[:]
     end
     Descriptor
 end
@@ -171,18 +196,44 @@ end
     axises_f, degree_f, reflection_f
 end
 
+@everywhere function saveSymmetryAxis(outName::AbstractString, axises_f, degree_f, reflection_f)
+    fout = open(outName, "w")
+    for i = 1:3
+        for j = 1:size(axises_f,2)
+            @printf(fout, "%7.3f ", axises_f[i,j])
+        end
+        @printf(fout, "\n")
+    end
+    for j = 1:size(degree_f,2)
+        @printf(fout, "%3d ", degree_f[j])
+    end
+    @printf(fout, "\n")
+    for j = 1:size(reflection_f,2)
+        @printf(fout, "%3d ", reflection_f[j])
+    end
+    @printf(fout, "\n")
+    close(fout)
+    return 0
+end
 
 @everywhere function refineTransform(candtrans, points)
     symtrans = []
     symscores = []
     for transform in candtrans
         points_trans = transform * points'
-        TR,TT,ER,t = icp(points', points_trans, 50, Minimize="point")
-        transform = TR * transform
-        if ER[end] < 0.025
-            push!(symtrans, transform)
-            push!(symscores, ER[end])
-        end
+    #    TR,TT,ER,t = icp(points', points_trans, 5)
+    #    transform = TR * transform
+    #    if ER[end] < 0.02 
+    #        push!(symtrans, transform)
+    #        push!(symscores, ER[end])
+    #    else 
+            TR,TT,ER,t = icp(points', points_trans, 50, Minimize="point")
+            transform = TR * transform
+            if ER[end] < 0.025
+                push!(symtrans, transform)
+                push!(symscores, ER[end])
+            end
+    #    end
     end
 
     symtrans, symscores

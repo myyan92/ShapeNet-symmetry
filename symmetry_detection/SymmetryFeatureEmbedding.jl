@@ -139,7 +139,11 @@ end
     @printf(log, "%f %f %f\n", eigenvec[3,:]...)
    
     #fixed point and PCA
-    densepoints = SamplePoints(Mesh.vertices, Mesh.faces, 8000)
+    num_points = min(round(Int, 10000/9.0*totalarea), 25000)
+    if num_points == 25000
+        @printf(log, "large area, cap number of points to 25000.")
+    end
+    densepoints = SamplePoints(Mesh.vertices, Mesh.faces, num_points) # average distance 0.03
     points = densepoints
     desc = @time(ShapeContext(points, 1.5, 6,6,128))
     dists = pairwise(Euclidean(), desc')
@@ -368,10 +372,16 @@ end
     saveSymmetry(filename, symType, translate, canonical)
 end
 
-synsetID = ARGS[1]
-println(synsetID)
-models = readall("./deduplicate_lists/" * synsetID * ".txt")
-models = split(models, '\n')
-synsets = fill(synsetID, size(models,1))
+#synsetID = ARGS[1]
+#println(synsetID)
+#models = readall("./deduplicate_lists/" * synsetID * ".txt")
+#models = split(models, '\n')
+#synsets = fill(synsetID, size(models,1))
+tasklist = ARGS[1]
+lines = readall(tasklist)
+lines = split(lines, '\n')
+pop!(lines)
+synsets = [split(l, ' ')[1] for l in lines]
+models = [split(l, ' ')[2] for l in lines]
 println(size(models,1))
 pmap(main, synsets, models)
