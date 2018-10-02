@@ -1,4 +1,8 @@
-@everywhere function axis2matrix(axis, degree)
+module TransformUtil
+
+export axis2matrix, matrix2axis
+
+function axis2matrix(axis, degree)
     matrix = eye(3)
     if degree == -1
         axis = axis ./ norm(axis)
@@ -23,7 +27,7 @@
     matrix
 end
 
-@everywhere function matrix2axis(transform)
+function matrix2axis(transform)
     D, V = eig(transform)
     reflection = sign(det(transform))
     if sum((transform - reflection*eye(3)).^2) < 0.001
@@ -68,3 +72,6 @@ end
 
     axis, ang, reflection
 end    
+
+
+end # module end

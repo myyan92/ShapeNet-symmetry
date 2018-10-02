@@ -8,6 +8,7 @@ addprocs(numCore - 1)
 @everywhere using SamplePointsUtil
 @everywhere using IOUtil
 @everywhere using ICPUtil
+@everywhere using ShapeContextLib
 include("./symmetrySpectral.jl")
 include("./refineAxis.jl")
 
@@ -147,12 +148,17 @@ end
     points = densepoints
     desc = @time(ShapeContext(points, 1.5, 6,6,128))
     dists = pairwise(Euclidean(), desc')
-    S = exp(- dists.^2 / 0.02)
-    Cs = broadcast(./, S, sum(S,2))
+    # Converting to similarity matrix. In-place to avoid memory usage.
+    for i in eachindex(dists)
+        dists[i] = exp(- dists[i]^2 / 0.02)
+    end
+    broadcast!(./, dists, dists, sum(dists,2))
     Xs = deepcopy(points)
     for t = 1:10
-        Xs = Cs * Xs
+        Xs = dists * Xs
     end
+    dists = nothing # clear and wait for garbage collection
+    gc()
     #pygui(true)
     #figure()
     #scatter3D(points[:,1], points[:,2], points[:,3], s=40, c="b")
@@ -388,4 +394,5 @@ synsets = [split(l, ' ')[1] for l in lines]
 models = [split(l, ' ')[2] for l in lines]
 println(size(models,1))
 #pmap(main, synsets, models)
-main(synsets[1], models[1])
+#main(synsets[1], models[1])
+main("02747177", "16521a9446e3de14a6f567d4d1e09ecb")
