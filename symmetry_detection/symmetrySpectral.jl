@@ -3,7 +3,7 @@ using MeshIO
 using FileIO
 using Distances
 using NearestNeighbors
-@everywhere include("icp.jl")
+using ICPUtil
 @everywhere include("utils.jl")
 
 function XYZToZRT(point, ex, ey, ez)

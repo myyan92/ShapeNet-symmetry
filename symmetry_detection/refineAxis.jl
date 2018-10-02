@@ -1,11 +1,11 @@
 push!(LOAD_PATH, pwd())
+
 using MeshIO
 using FileIO
 using SamplePointsUtil
+using ICPUtil
 include("./ConnectedComponent.jl")
 include("./symmetrySpectral.jl")
-include("./icp.jl")
-#include("./samplepoints.jl")
 
 @everywhere function thresh_start()
     return 0.1

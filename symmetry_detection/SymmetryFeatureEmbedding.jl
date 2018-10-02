@@ -7,8 +7,8 @@ addprocs(numCore - 1)
 @everywhere using FileIO
 @everywhere using SamplePointsUtil
 @everywhere using IOUtil
+@everywhere using ICPUtil
 include("./symmetrySpectral.jl")
-include("./icp.jl")
 include("./refineAxis.jl")
 
 @everywhere function estimateDegree(points, axis)
