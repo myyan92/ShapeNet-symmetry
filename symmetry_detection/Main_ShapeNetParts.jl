@@ -21,12 +21,12 @@ const path2results = "/orions4-zfs/projects/anastasiad/ShapeNet-symmetry/Results
 	    newMesh = loadMesh_v2(filename)
 	    logname = "/orions4-zfs/projects/anastasiad/ShapeNet-symmetry/Results/03001627/" * modelname * "_$partnum.log"
 	    println(logname)
-	    # fout = open(logname, "w")
-	    # symType, canonical, translate = detectSelfSymmetry(newMesh, fout)
-	    # close(fout)
+	    fout = open(logname, "w")
+	    symType, canonical, translate = detectSelfSymmetry(newMesh, fout)
+	    close(fout)
 	    symname = "/orions4-zfs/projects/anastasiad/ShapeNet-symmetry/Results/03001627/" * modelname * "_$partnum.sym"
 	    println(symname)
-	    # saveSymmetry(symname, symType, translate, canonical)
+	    saveSymmetry(symname, symType, translate, canonical)
     end
 end
 
