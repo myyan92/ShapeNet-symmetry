@@ -3,17 +3,15 @@ push!(LOAD_PATH, pwd())
 numCore = 10
 addprocs(numCore - 1)
 
-@everywhere using MeshIO
-@everywhere using FileIO
-@everywhere using Distances
-@everywhere using SamplePointsUtil
-@everywhere using IOUtil
-@everywhere using ICPUtil
-@everywhere using ShapeContextLib
-@everywhere using RefineAxisLib
-@everywhere using SymmetrySpectralLib
-#include("./symmetrySpectral.jl")
-#include("./refineAxis.jl")
+using MeshIO
+using FileIO
+using Distances
+using SamplePointsUtil
+using IOUtil
+using ICPUtil
+using ShapeContextLib
+using RefineAxisLib
+using SymmetrySpectralLib
 
 @everywhere function estimateDegree(points, axis)
     rbin = 6
