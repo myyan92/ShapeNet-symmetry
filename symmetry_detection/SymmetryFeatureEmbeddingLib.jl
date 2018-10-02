@@ -1,17 +1,18 @@
-push!(LOAD_PATH, pwd())
+module SymmetryFeatureEmbeddingLib
 
-# numCore = 10
-# addprocs(numCore - 1)
+using MeshIO
+using FileIO
+using Distances
+using SamplePointsUtil
+using IOUtil
+using ICPUtil
+using ShapeContextLib
+using RefineAxisLib
+using SymmetrySpectralLib
 
-@everywhere using MeshIO
-@everywhere using FileIO
-@everywhere using SamplePointsUtil
-include("./io.jl")
-include("./symmetrySpectral.jl")
-include("./icp.jl")
-include("./refineAxis.jl")
+export detectSelfSymmetry
 
-@everywhere function estimateDegree(points, axis)
+function estimateDegree(points, axis)
     rbin = 6
     hbin = 4
     abin = 64
@@ -61,8 +62,7 @@ include("./refineAxis.jl")
     Descriptor, maxpos
 end
 
-
-@everywhere function symLevel(symType)
+function symLevel(symType)
     if symType=="E"
         return 1
     elseif symType=="Cs"
@@ -83,7 +83,7 @@ end
     end
 end 
 
-@everywhere function get_canonical(reflectNormal, rotationAxis, reflectPose, symType)
+function get_canonical(reflectNormal, rotationAxis, reflectPose, symType)
     canonical_dir = eye(3)
     if symType=="E"
         return eye(3)
@@ -112,7 +112,7 @@ end
     return canonical_dir
 end
 
-@everywhere function detectSelfSymmetry(Mesh, log)
+function detectSelfSymmetry(Mesh, log)
 
     #mesh PCA
     face = Mesh.faces;
@@ -139,20 +139,23 @@ end
     @printf(log, "%f %f %f\n", eigenvec[3,:]...)
    
     #fixed point and PCA
-    densepoints = SamplePoints(Mesh.vertices, Mesh.faces, 8000)
+    num_points = min(round(Int, 10000/9.0*totalarea), 25000)
+    if num_points == 25000
+        @printf(log, "large area, cap number of points to 25000.")
+    end
+    densepoints = SamplePoints(Mesh.vertices, Mesh.faces, num_points) # average distance 0.03
     points = densepoints
     desc = @time(ShapeContext(points, 1.5, 6,6,128))
     dists = pairwise(Euclidean(), desc')
-    S = exp(- dists.^2 / 0.02)
-    Cs = broadcast(./, S, sum(S,2))
+    # Converting to similarity matrix. In-place to avoid memory usage.
+    for i in eachindex(dists)
+        dists[i] = exp(- dists[i]^2 / 0.02)
+    end
+    broadcast!(./, dists, dists, sum(dists,2))
     Xs = deepcopy(points)
     for t = 1:10
-        Xs = Cs * Xs
+        Xs = dists * Xs
     end
-    #pygui(true)
-    #figure()
-    #scatter3D(points[:,1], points[:,2], points[:,3], s=40, c="b")
-    #scatter3D(Xs[:,1], Xs[:,2], Xs[:,3], s=70, c="r")
     Xs_c = mean(Xs, 1)
     Cov = Xs'*Xs./size(Xs, 1) - Xs_c'*Xs_c
     val, dir = eig(Cov)
@@ -356,3 +359,4 @@ end
     symType, canonical_dir, translate
 end
 
+end # module end

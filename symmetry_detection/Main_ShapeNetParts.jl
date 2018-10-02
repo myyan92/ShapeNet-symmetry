@@ -3,10 +3,10 @@ push!(LOAD_PATH, pwd())
 numCore = 10
 addprocs(numCore - 1)
 
-@everywhere using MeshIO
-@everywhere using FileIO
-include("./io.jl")
-include("./symmetryFeatureEmbedding_module.jl")
+using MeshIO
+using FileIO
+using IOUtil
+using SymmetryFeatureEmbeddingLib
 
 const path2obj = "/orions4-zfs/projects/jyau/SymmDetProject/testing/Minhyuk-style-OBJ/"
 const path2results = "/orions4-zfs/projects/anastasiad/ShapeNet-symmetry/Results/03001627/"
