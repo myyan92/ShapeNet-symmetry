@@ -37,5 +37,7 @@ models = readall("./deduplicate_lists/" * synsetID * ".txt")
 models = split(models, '\n')
 #path2obj = fill(path2obj, size(models,1))
 println(size(models,1))
-pmap(main, path2obj, models[1:500])
-# main(path2obj[1],models[1])
+# pmap(main, path2obj, models)
+for model_id = 1:500
+	main(path2obj[1],models[model_id])
+end
