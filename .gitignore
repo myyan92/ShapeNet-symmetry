@@ -1,2 +1,4 @@
 # results folders
 ./symmetry_detection/Results/**
+# verification webpages
+./symmetry_website/*_s*_e*.html
