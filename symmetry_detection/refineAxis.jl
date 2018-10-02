@@ -8,11 +8,11 @@ include("./icp.jl")
 #include("./samplepoints.jl")
 
 @everywhere function thresh_start()
-    return 0.07
+    return 0.1
 end
 
 @everywhere function thresh_end()
-    return 0.035
+    return 0.03
 end
 
 #axis is the normal of the reflection plane. 
