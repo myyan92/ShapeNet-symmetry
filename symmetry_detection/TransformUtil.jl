@@ -1,18 +1,20 @@
 module TransformUtil
 
+using LinearAlgebra
+
 export axis2matrix, matrix2axis
 
 function axis2matrix(axis, degree)
-    matrix = eye(3)
+    matrix = Matrix{Float64}(I, 3, 3)
     if degree == -1
-        axis = axis ./ norm(axis)
+        axis = axis / norm(axis)
         matrix = matrix - 2 * axis * axis'
     elseif degree == 1
-        matrix = eye(3)
+        matrix = Matrix{Float64}(I, 3, 3)
     else 
         angle = 2 * pi / degree
         a = cos(angle/2)
-        axis = axis ./ norm(axis) .* sin(angle/2)
+        axis = axis / norm(axis) * sin(angle/2)
         matrix[1,1] = matrix[1,1] - 2 * (axis[2]^2 + axis[3]^2)
         matrix[2,2] = matrix[2,2] - 2 * (axis[1]^2 + axis[3]^2)
         matrix[3,3] = matrix[3,3] - 2 * (axis[1]^2 + axis[2]^2)
@@ -28,9 +30,9 @@ function axis2matrix(axis, degree)
 end
 
 function matrix2axis(transform)
-    D, V = eig(transform)
+    D, V = eigen(transform)
     reflection = sign(det(transform))
-    if sum((transform - reflection*eye(3)).^2) < 0.001
+    if sum((transform - reflection*I).^2) < 0.001
         axis = [0,0,0]
         ang = 0
     else
@@ -61,7 +63,7 @@ function matrix2axis(transform)
                 qy = (transform[3,2]+transform[2,3]) / S;
                 qz = 0.25 * S;
             end
-            axis = real([qx,qy,qz]) ./ sqrt(1-qw*qw)
+            axis = real([qx,qy,qz]) / sqrt(1-qw*qw)
             ang = acos(qw) * 2
         else
             idx = indmin(abs(D-reflection))

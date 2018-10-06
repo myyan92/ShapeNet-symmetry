@@ -1,5 +1,5 @@
 using IOUtil
-include("./refineAxis.jl")
+using RefineAxisLib
 
 function generateAxis(symType, translate, coordinate)
     if symType=="E" 

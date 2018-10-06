@@ -1,5 +1,7 @@
 module ICPUtil
 
+using LinearAlgebra
+using Statistics
 using Distances
 using NearestNeighbors
 
@@ -28,10 +30,10 @@ function eq_point(q,p)
     n = size(q,2);
 
     # find data centroid and deviations from centroid
-    q_bar = sum(q,2)./n;
+    q_bar = sum(q, dims=2) / n;
     q_mark = broadcast(-, q, q_bar);
     # find data centroid and deviations from centroid
-    p_bar = sum(p,2)./m;
+    p_bar = sum(p, dims=2) / m;
     p_mark = broadcast(-, p, p_bar);
     
     N = p_mark*q_mark'; 
@@ -52,12 +54,12 @@ function eq_plane(q,p,n)
     cn = vcat(c,n);
     C = cn*cn';
 
-    b = - [sum((p-q).*repmat(cn[1,:],3,1).*n);
-        sum((p-q).*repmat(cn[2,:],3,1).*n);
-        sum((p-q).*repmat(cn[3,:],3,1).*n);
-        sum((p-q).*repmat(cn[4,:],3,1).*n);
-        sum((p-q).*repmat(cn[5,:],3,1).*n);
-        sum((p-q).*repmat(cn[6,:],3,1).*n)];
+    b = -[sum((p-q).*repeat(cn[1,:],3,1).*n);
+          sum((p-q).*repeat(cn[2,:],3,1).*n);
+          sum((p-q).*repeat(cn[3,:],3,1).*n);
+          sum((p-q).*repeat(cn[4,:],3,1).*n);
+          sum((p-q).*repeat(cn[5,:],3,1).*n);
+          sum((p-q).*repeat(cn[6,:],3,1).*n)];
 
     X = C\b;
     cx = cos(X[1]); cy = cos(X[2]); cz = cos(X[3]); 
@@ -81,16 +83,16 @@ function lsqnormest(p, k)
     m = size(p,2)
     n = zeros(3,m)
 
-    kdtree = KDTree(p)
+    kdtree = KDTree(Array(p))
     neighbors, dists = knn(kdtree, p, k+1, true)
 
     for i = 1:m
         x = p[:,neighbors[i][2:end]]
-        p_bar = 1/k * sum(x,2)
+        p_bar = 1/k * sum(x, dims=2)
         x = broadcast(-, x, p_bar)
         P = x * x';
 
-        D,V = eig(P)
+        D,V = eigen(P)
         idx = indmin(D) 
         n[:,i] = V[:,idx];   
     end
@@ -102,11 +104,11 @@ function icp(q,p,k=10, normal=[]; Matching="kDtree", Minimize="plane", ReturnAll
      Perform the Iterative Closest Point algorithm on three dimensional point
   clouds.
 
-  [TR, TT, ER, t] = icp(q,p,k)   returns the rotation matrix TR and translation
+  [TR, TT, ER] = icp(q,p,k)   returns the rotation matrix TR and translation
   vector TT that minimizes the distances from (TR * p + TT) to q. p is a 3xm matrix
      and q is a 3xn matrix. k is the number of iterations. ER is the RMS of errors for k
   iterations in a (k+1)x1 vector. ER(0) is the initial error. Also returns the calculation times per
-  iteration in a (k+1)x1 vector. t(0) is the time consumed for preprocessing.
+  iteration in a (k+1)x1 vector.
 
   Additional settings:
 
@@ -136,9 +138,7 @@ function icp(q,p,k=10, normal=[]; Matching="kDtree", Minimize="plane", ReturnAll
 
 """
     # Allocate vector for time and RMS of errors in every iteration.
-    t = zeros(k+1,1); 
     ER = zeros(k+1,1);
-    tic();
 
     Np = size(p,2);
 
@@ -147,12 +147,12 @@ function icp(q,p,k=10, normal=[]; Matching="kDtree", Minimize="plane", ReturnAll
 
     # Initialize temporary transform vector and matrix.
     T = zeros(3,1);
-    R = eye(3,3);
+    R = Matrix{Float64}(I, 3,3);
 
     # Initialize total transform vector(s) and rotation matric(es).
     TT = zeros(3,1, k+1);
     TR = zeros(3,3, k+1);
-    TR[:,:,1] = eye(3);
+    TR[:,:,1] = Matrix{Float64}(I, 3,3);
 
     # If Minimize == "plane", normals are needed
     if (Minimize == "plane") && isempty(normal)
@@ -161,14 +161,11 @@ function icp(q,p,k=10, normal=[]; Matching="kDtree", Minimize="plane", ReturnAll
 
     # If Matching == 'kDtree', a kD tree should be built (req. Stat. TB >= 7.3)
     if Matching == "kDtree"
-        kdtree = KDTree(q);
+        kdtree = KDTree(Array(q));
     end
-
-    t[1] = toq();
 
     # Go into main iteration loop
     for dk=1:k
-        tic()
         if Matching == "kDtree"
             match, mindist = match_kDtree(q,pt,kdtree); 
         else 
@@ -179,14 +176,12 @@ function icp(q,p,k=10, normal=[]; Matching="kDtree", Minimize="plane", ReturnAll
         # If worst matches should be rejected
         if WorstReject>0
             edge = round(Int, (1-WorstReject)*sum(p_idx));
-            pairs = find(p_idx);
             idx = sortperm(mindist);
-            p_idx[pairs[idx[edge:end]]] = false;
+            for i in idx[edge:end]
+                p_idx[i] = false;
+            end
             q_idx = match[vec(p_idx)];
             mindist = mindist[vec(p_idx)];
-            #p_idx[vec(mindist) .> WorstReject] = false;
-            #q_idx = match[p_idx];
-            #mindist = mindist[p_idx];
         end
 
         if dk == 1
@@ -204,14 +199,12 @@ function icp(q,p,k=10, normal=[]; Matching="kDtree", Minimize="plane", ReturnAll
         TT[:,:,dk+1] = R*TT[:,:,dk]+T;
 
         # Apply last transformation
-        pt = TR[:,:,dk+1] * p + repmat(TT[:,:,dk+1], 1, Np);
+        pt = TR[:,:,dk+1] * p + repeat(TT[:,:,dk+1], 1, Np);
         ER[dk+1] = rms_error(q[:,vec(q_idx)], pt[:,vec(p_idx)]);
-        t[dk+1] = toq();
         if ER[dk]-ER[dk+1] < 1e-4 
             TR = TR[:,:,1:dk+1]
             TT = TT[:,:,1:dk+1]
             ER = ER[1:dk+1]
-            t = t[1:dk+1]
             break; 
         end
     end
@@ -221,7 +214,7 @@ function icp(q,p,k=10, normal=[]; Matching="kDtree", Minimize="plane", ReturnAll
         TT = TT[:,:,end];
     end
 
-    TR, vec(TT), ER, t
+    TR, vec(TT), ER
     
 end
 

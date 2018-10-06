@@ -1,5 +1,7 @@
 module SymmetrySpectralLib
 
+using LinearAlgebra
+using Statistics
 using Distances
 using NearestNeighbors
 using ICPUtil
@@ -9,12 +11,12 @@ using ShapeContextLib
 export refineTransform, processSymmetry, symmetrySpectral
 
 function calculateTransformation(reflection, point_x1, point_x2, point_y1, point_y2)
-    point_x = point_x1 ./ norm(point_x1)
-    point_y = point_y1 ./ norm(point_y1)
-    diff_x = point_x2 - point_x .* (point_x2 * point_x')
-    diff_y = point_y2 - point_y .* (point_y2 * point_y')
-    diff_x = diff_x ./ norm(diff_x)
-    diff_y = diff_y ./ norm(diff_y)
+    point_x = point_x1 / norm(point_x1)
+    point_y = point_y1 / norm(point_y1)
+    diff_x = point_x2 - point_x * (point_x2 * point_x')
+    diff_y = point_y2 - point_y * (point_y2 * point_y')
+    diff_x = diff_x / norm(diff_x)
+    diff_y = diff_y / norm(diff_y)
     cross_x = cross(vec(point_x), vec(diff_x))
     cross_y = cross(vec(point_y), vec(diff_y))
     if reflection==1
@@ -30,7 +32,7 @@ function refineTransform(candtrans, points)
     symscores = []
     for transform in candtrans
         points_trans = transform * points'
-        TR,TT,ER,t = icp(points', points_trans, 50, Minimize="point")
+        TR,TT,ER = icp(points', points_trans, 50, Minimize="point")
         transform = TR * transform
         if ER[end] < 0.035
             push!(symtrans, transform)
@@ -72,7 +74,7 @@ function processSymmetry(symtrans, symscores)
         for j = i+1:size(axises, 1)
             if reflections[j] == 1 continue end
             axis = cross(vec(axises[i]), vec(axises[j]))
-            push!(axises, axis ./ norm(axis))
+            push!(axises, axis / norm(axis))
             push!(angles, acos(dot(vec(axises[i]), vec(axises[j])))*2)
             push!(reflections, 1)
             #println(size(axises, 1))
@@ -148,7 +150,7 @@ function symmetrySpectral(points::Array{Float64}, desc::Array{Float64})
     numMaxCal = 400
     symtrans = []
     symscore = []
-    kdtree = KDTree(points')
+    kdtree = KDTree(Array(points'))
     pointdists = pairwise(Euclidean(), points')
     validpairs = (dists .< 0.15) & (pointdists .> 0.1)
     istrue(x) = x==true
