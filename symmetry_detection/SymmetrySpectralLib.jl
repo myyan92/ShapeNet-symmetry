@@ -47,13 +47,17 @@ function processSymmetry(symtrans, symscores)
     axises = []
     angles = []
     reflections = []
+    scores = []
     for i = 1:size(symtrans, 1)
         axis, ang, reflection = matrix2axis(symtrans[i])
-        push!(axises, axis)
-        push!(angles, ang)
-        push!(reflections, reflection)
+        if ang > 0.15 || reflection == -1
+            push!(axises, axis)
+            push!(angles, ang)
+            push!(reflections, reflection)
+            push!(scores, symscores[i])
+        end
     end
-    idx = sortperm(symscores)
+    idx = sortperm(scores)
     axises = axises[idx]
     angles = angles[idx]
     reflections = reflections[idx]
@@ -88,7 +92,7 @@ function processSymmetry(symtrans, symscores)
         for i = 2:size(axises,1)
             dist = abs(axises[i]'*axises_f)
             maxval, maxidx = findmax(dist)
-            if maxval > 0.97
+            if maxval > 0.90
                 if reflections[i]==1
                     push!(angles_f[maxidx],angles[i])
                     elseif angles[i] < 0.01
