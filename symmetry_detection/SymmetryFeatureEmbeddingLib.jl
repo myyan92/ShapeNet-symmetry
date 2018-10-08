@@ -145,127 +145,103 @@ function detectSelfSymmetry(Mesh, log)
     end
     densepoints = SamplePoints(Mesh.vertices, Mesh.faces, num_points) # average distance 0.03
     points = densepoints
-    desc = @time(ShapeContext(points, 1.5, 6,6,128))
-    dists = pairwise(Euclidean(), desc')
-    # Converting to similarity matrix. In-place to avoid memory usage.
-    for i in eachindex(dists)
-        dists[i] = exp(- dists[i]^2 / 0.02)
-    end
-    broadcast!(./, dists, dists, sum(dists,2))
-    Xs = deepcopy(points)
-    for t = 1:10
-        Xs = dists * Xs
-    end
-    Xs_c = mean(Xs, 1)
-    Cov = Xs'*Xs./size(Xs, 1) - Xs_c'*Xs_c
-    val, dir = eig(Cov)
-    idx = sortperm(val)
-    val = val[idx]
-    dir = dir[:, idx]
-    @printf(log, "%s\n", "Fixed point PCA-eigenval-eigenvec(column)")
-    @printf(log, "%f %f %f\n", val...)
-    @printf(log, "%f %f %f\n", dir[1,:]...)
-    @printf(log, "%f %f %f\n", dir[2,:]...)
-    @printf(log, "%f %f %f\n", dir[3,:]...)
 
     #suggest promising symmetry
     symType = "E"
     canonical_dir = eye(3)
     translate = zeros(3,1)
-    if val[1] > 0.001
-        #no symmetry, return
-        @printf(log, "%s\n", "no symmetry")
 
-    elseif val[2] > 0.001
-        #reflection normal = first eigenvector
-        axis = dir[:,1]
-        degree = -1
-        axis_f, translate_f = refineAxis_reflect(densepoints, axis, log)
-        if isempty(axis_f)
-            @printf(log, "%s\n", "reflection test failed")
-        else
-            @printf(log, "%s\n", "reflection test pass")
-            translate = translate_f
-            symType = "Cs"
+    if eigenval[1]/eigenval[2] < 0.84 && eigenval[2]/eigenval[3] < 0.84  # A little less than sqrt(3)/2
+        @printf(log, "%s\n", "cuboid group")
+        axis = eigenvec[:,1]
+        reflectPose = eigenvec[:,2]
+        axis_f, reflectPose, translate, degree_f, symType = refineAxis_D(densepoints, axis, 2, reflectPose, log)
+        canonical_dir = get_canonical(nothing, axis_f, reflectPose, symType)
+
+    elseif eigenval[1]/eigenval[2] < 0.84 || eigenval[2]/eigenval[3] < 0.84
+        @printf(log, "%s\n", "D group axis")     
+        if eigenval[1]/eigenval[2] < 0.84
+            axis = eigenvec[:,1]
+        else 
+            axis = eigenvec[:,3]
         end
-        canonical_dir = get_canonical(axis_f, nothing, nothing, symType)
-    elseif val[3] > 0.001
-        #rotation axis = third eigenvector
-        axis = dir[:,3]
-        @printf(log, "%s\n", "C group axis")
         degrees, reflectPoses = estimateDegree(densepoints, axis)
         @printf(log, "%f %f %f %f %f %f %f %f\n", degrees...)
         idx = sortperm(vec(degrees), rev=true)
         degrees = degrees[idx]
         reflectPoses = reflectPoses[:,idx]
         degree_f = 0
-        axis_f = []
-        reflectPose = []
-        translate_f = []
-        isreflect_f = false
         for i = 1:size(degrees,1)
             if (i>1) && (degrees[i]==degrees[i-1]) continue; end
-            axis_t, reflectPose_t, translate_t, degree_t, isreflect= refineAxis_C(densepoints, axis, degrees[i], reflectPoses[:,i], log)
-            if degree_t > degree_f 
+            axis_t, reflectPose_t, translate_t, degree_t, symType_t= refineAxis_D(densepoints, axis, degrees[i], reflectPoses[:,i], log)
+            if (degree_t > degree_f) || (degree_t == degree_f && symLevel(symType_t) > symLevel(symType)) 
                 degree_f = degree_t
                 axis_f = axis_t
                 reflectPose = reflectPose_t
-                translate_f = translate_t
-                isreflect_f = isreflect
-            elseif degree_t == degree_f && isreflect
-                axis_f = axis_t
-                reflectPose = reflectPose_t
-                translate_f = translate_t
-                isreflect_f = isreflect
-            end
-        end
-        translate = translate_f
-        symType = "C$(degree_f)"
-        if isreflect_f
-            symType = symType * "v"
-        end
-        if degree_f==1
-            symType = "Cs"
-            if !isreflect_f
-                symType = "E"
+                translate = translate_t
+                symType = symType_t
             end
         end
         canonical_dir = get_canonical(nothing, axis_f, reflectPose, symType)
-    elseif val[3] <= 0.001
-        # higher order symmetry
-        if eigenval[1]/eigenval[2] < 0.9 && eigenval[2]/eigenval[3] < 0.9
-            @printf(log, "%s\n", "cuboid group")
-            axis = eigenvec[:,1]
-            reflectPose = eigenvec[:,2]
-            axis_f, reflectPose, translate, degree_f, symType = refineAxis_D(densepoints, axis, 2, reflectPose, log)
-            canonical_dir = get_canonical(nothing, axis_f, reflectPose, symType)
 
-        elseif eigenval[1]/eigenval[2] < 0.9 || eigenval[2]/eigenval[3] < 0.9
-            @printf(log, "%s\n", "D group axis")
-            if eigenval[1]/eigenval[2] < 0.9
-                axis = eigenvec[:,1]
-            else 
-                axis = eigenvec[:,3]
+    else
+        # Requires information from fixed points.
+        desc = @time(ShapeContext(points, 1.5, 6,6,128))
+        dists = pairwise(Euclidean(), desc')
+        # Converting to similarity matrix. In-place to avoid memory usage.
+        for i in eachindex(dists)
+            dists[i] = exp(- dists[i]^2 / 0.02)
+        end
+        broadcast!(./, dists, dists, sum(dists,2))
+        Xs = deepcopy(points)
+        for t = 1:10
+            Xs = dists * Xs
+        end
+        Xs_c = mean(Xs, 1)
+        Cov = Xs'*Xs./size(Xs, 1) - Xs_c'*Xs_c
+        val, dir = eig(Cov)
+        idx = sortperm(val)
+        val = val[idx]
+        dir = dir[:, idx]
+        @printf(log, "%s\n", "Fixed point PCA-eigenval-eigenvec(column)")
+        @printf(log, "%f %f %f\n", val...)
+        @printf(log, "%f %f %f\n", dir[1,:]...)
+        @printf(log, "%f %f %f\n", dir[2,:]...)
+        @printf(log, "%f %f %f\n", dir[3,:]...)
+
+        if val[1] > 0.002
+            #no symmetry, return
+            @printf(log, "%s\n", "no symmetry")
+
+        elseif val[2] > 0.002
+            #reflection normal = first eigenvector
+            axis = dir[:,1]
+            axis_f, translate_f = refineAxis_reflect(densepoints, axis, log)
+            if isempty(axis_f)
+                @printf(log, "%s\n", "reflection test failed")
+            else
+                @printf(log, "%s\n", "reflection test pass")
+                translate = translate_f
+                symType = "Cs"
             end
+            canonical_dir = get_canonical(axis_f, nothing, nothing, symType)
+
+        elseif val[3] > 0.001
+            #rotation axis = third eigenvector
+            axis = dir[:,3]
+            @printf(log, "%s\n", "C group axis")
             degrees, reflectPoses = estimateDegree(densepoints, axis)
             @printf(log, "%f %f %f %f %f %f %f %f\n", degrees...)
             idx = sortperm(vec(degrees), rev=true)
             degrees = degrees[idx]
             reflectPoses = reflectPoses[:,idx]
             degree_f = 0
-            axis_f = []
-            reflectPose = []
-            symType_t = ""
+            isreflect_f = false
             for i = 1:size(degrees,1)
                 if (i>1) && (degrees[i]==degrees[i-1]) continue; end
-                axis_t, reflectPose_t, translate_t, degree_t, symType_t= refineAxis_D(densepoints, axis, degrees[i], reflectPoses[:,i], log)
-                if degree_t > degree_f 
+                axis_t, reflectPose_t, translate_t, degree_t, symType_t = refineAxis_C(densepoints, axis, degrees[i], reflectPoses[:,i], log)
+                if (degree_t > degree_f) || (degree_t == degree_f && symLevel(symType_t) > symLevel(symType))
                     degree_f = degree_t
-                    axis_f = axis_t
-                    reflectPose = reflectPose_t
-                    translate = translate_t
-                    symType = symType_t
-                elseif degree_t == degree_f && symLevel(symType_t) > symLevel(symType)
                     axis_f = axis_t
                     reflectPose = reflectPose_t
                     translate = translate_t
@@ -273,8 +249,8 @@ function detectSelfSymmetry(Mesh, log)
                 end
             end
             canonical_dir = get_canonical(nothing, axis_f, reflectPose, symType)
-
-        else
+            
+        elseif val[3] <= 0.001
             @printf(log, "%s\n", "calling symSpectral")
             candtrans = symmetrySpectral(points,desc)
             symtrans, symscores = refineTransform(candtrans, densepoints)
