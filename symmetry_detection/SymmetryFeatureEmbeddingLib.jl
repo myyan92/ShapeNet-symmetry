@@ -1,5 +1,9 @@
 module SymmetryFeatureEmbeddingLib
 
+using Printf
+using LinearAlgebra
+using Statistics
+using AbstractFFTs
 using MeshIO
 using FileIO
 using Distances
@@ -17,29 +21,29 @@ function estimateDegree(points, axis)
     hbin = 4
     abin = 64
     Descriptor = zeros(1, rbin*2*hbin)
-    ez = vec(axis) ./ norm(axis)
+    ez = vec(axis) / norm(axis)
     ex = cross(Float64[0,0,1], ez)
     if norm(ex)<0.001
         ex = Float64[1,0,0]
     else
-        ex = ex ./ norm(ex)
+        ex = ex / norm(ex)
     end
     ey = cross(ez, ex)
     height = points * ez
     inplane = points - height * ez'
-    radi = sqrt(sum(inplane.^2, 2))
-    inplane = broadcast(./, inplane, radi)
+    radi = sqrt(sum(inplane.^2, dims=2))
+    inplane = broadcast(/, inplane, radi)
     ang = acos(clamp(inplane * ex, -1.0, 1.0))  #angle is another function
     reflect = inplane * ey
     f_reflect(x) = x<0
     idx = find(f_reflect, reflect)
     ang[idx] = broadcast(+, 2*pi, -ang[idx])
-    height_q = floor(Int32, height .* hbin) + 1 + hbin
+    height_q = floor(Int32, height * hbin) + 1 + hbin
     height_q = min(height_q, 2*hbin)
     height_q = max(height_q, 1)
-    radi_q = floor(Int32, radi .* rbin) + 1
+    radi_q = floor(Int32, radi * rbin) + 1
     radi_q = min(radi_q, rbin)
-    angle_q = floor(Int32, ang ./ 2 ./ pi .* abin) + 1
+    angle_q = floor(Int32, ang / 2 / pi * abin) + 1
     angle_q = min(angle_q, abin)
     rmax = zeros(abin, 2*hbin)
     for i in 1:size(height_q, 1)
@@ -54,7 +58,7 @@ function estimateDegree(points, axis)
     Descriptor[maxval .< 0.55] = 20
     Descriptor[Descriptor .> 20] = 20
     phase = [rphi[Descriptor[i]+1, i] for i in 1:2*hbin]
-    phase = - vec(phase) ./ vec(Descriptor) + pi/abin
+    phase = - broadcast(/, vec(phase), vec(Descriptor)) + pi/abin
     maxpos = zeros(3, size(phase,1))
     for i = 1:size(phase,1)
         maxpos[:,i] = cos(phase[i]) * ex + sin(phase[i]) * ey
@@ -84,9 +88,9 @@ function symLevel(symType)
 end 
 
 function get_canonical(reflectNormal, rotationAxis, reflectPose, symType)
-    canonical_dir = eye(3)
+    canonical_dir = Matrix{Float64}(I, 3,3)
     if symType=="E"
-        return eye(3)
+        return canonical_dir
     elseif symType=="Cs"
         if reflectNormal==nothing
             reflectNormal = cross(rotationAxis, reflectPose)
@@ -123,11 +127,11 @@ function detectSelfSymmetry(Mesh, log)
         pt2 = vec(Mesh.vertices[f[2],:])
         pt3 = vec(Mesh.vertices[f[3],:])
         area = norm(cross(pt1-pt2,pt2-pt3))/2
-        Cov = Cov + (pt1*pt1' + pt2*pt2' + pt3*pt3' + 0.5*(pt1*pt2' + pt1*pt3' + pt2*pt1' + pt2*pt3' + pt3*pt1' + pt3*pt2')).*area./6
+        Cov = Cov + (pt1*pt1' + pt2*pt2' + pt3*pt3' + 0.5*(pt1*pt2' + pt1*pt3' + pt2*pt1' + pt2*pt3' + pt3*pt1' + pt3*pt2')) * area / 6
         totalarea = totalarea + area
     end
-    Cov = Cov ./ totalarea
-    eigenval, eigenvec = eig(Cov)
+    Cov = Cov / totalarea
+    eigenval, eigenvec = eigen(Cov)
     idx = sortperm(eigenval)
     eigenval = eigenval[idx]
     eigenvec = eigenvec[:,idx]
@@ -148,7 +152,7 @@ function detectSelfSymmetry(Mesh, log)
 
     #suggest promising symmetry
     symType = "E"
-    canonical_dir = eye(3)
+    canonical_dir = Matrix{Float64}(I, 3, 3)
     translate = zeros(3,1)
 
     if eigenval[1]/eigenval[2] < 0.84 && eigenval[2]/eigenval[3] < 0.84  # A little less than sqrt(3)/2
@@ -192,14 +196,14 @@ function detectSelfSymmetry(Mesh, log)
         for i in eachindex(dists)
             dists[i] = exp(- dists[i]^2 / 0.02)
         end
-        broadcast!(./, dists, dists, sum(dists,2))
+        broadcast!(/, dists, dists, sum(dists, dims=2))
         Xs = deepcopy(points)
         for t = 1:10
             Xs = dists * Xs
         end
-        Xs_c = mean(Xs, 1)
-        Cov = Xs'*Xs./size(Xs, 1) - Xs_c'*Xs_c
-        val, dir = eig(Cov)
+        Xs_c = mean(Xs, dims=1)
+        Cov = Xs'*Xs / size(Xs, 1) - Xs_c'*Xs_c
+        val, dir = eigen(Cov)
         idx = sortperm(val)
         val = val[idx]
         dir = dir[:, idx]
@@ -282,7 +286,7 @@ function detectSelfSymmetry(Mesh, log)
                                 reflectPose = cross(vec(axises_f[:,i]), vec([0,1,0]))
                             end
                         end
-                        reflectPose = reflectPose ./ norm(reflectPose)
+                        reflectPose = reflectPose / norm(reflectPose)
                         axis_f, reflectPose_f, translate_f, degree_f, symType_f= refineAxis_D(densepoints, axises_f[:,i], degrees_f[i], reflectPose, log)
                         if degree_f > 2
                             num_high_degree += 1
@@ -297,7 +301,7 @@ function detectSelfSymmetry(Mesh, log)
                             if (highest_deg == 5) && dot(axis_f, canonical_dir[:,2]) < 0
                                 axis_f = -axis_f
                             end
-                            canonical_dir[:,1] = axis_f - canonical_dir[:,2] .* dot(canonical_dir[:,2], axis_f)
+                            canonical_dir[:,1] = axis_f - canonical_dir[:,2] * dot(canonical_dir[:,2], axis_f)
                             canonical_dir[:,1] /= norm(canonical_dir[:,1])
                             canonical_dir[:,3] = cross(canonical_dir[:,1],canonical_dir[:,2])
 
@@ -326,7 +330,7 @@ function detectSelfSymmetry(Mesh, log)
                         symType = "T"
                     else
                         symType = "O3"
-                        canonical_dir = eye(3)
+                        canonical_dir = Matrix{Float64}(I. 3, 3)
                     end
                 end
             end                

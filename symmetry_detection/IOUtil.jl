@@ -1,16 +1,15 @@
 module IOUtil
 
+using LinearAlgebra
+using Printf
 using MeshIO
 using FileIO
 
 export MeshType, loadMesh, loadMesh_v2, saveSymmetry, readSymmetry, saveSymmetryAxis
 
-type MeshType
+mutable struct MeshType
   vertices::Array
   faces::Array
-
-  MeshType() = new([], [])
-  MeshType(vertices, faces) = new(vertives, faces)
 end
 
 function loadMesh(synsetID, modelname)
@@ -26,13 +25,11 @@ function loadMesh_v2(filename)
     for i = 1:size(model.vertices,1)
         v[i,:]=[model.vertices[i][1], model.vertices[i][2], model.vertices[i][3]];
     end
-    f = zeros(size(model.faces, 1),3);
+    f = zeros(Int32, size(model.faces, 1),3);
     for i = 1:size(model.faces,1)
-        f[i,:] = [model.faces[i][1]+1, model.faces[i][2]+1, model.faces[i][3]+1];
+        f[i,:] = [model.faces[i][1], model.faces[i][2], model.faces[i][3]];
     end
-    newMesh = MeshType()
-    newMesh.vertices = v
-    newMesh.faces = []
+    newMesh = MeshType(v, [])
     for i = 1:size(f, 1)
         push!(newMesh.faces, Array{Int}(f[i, :]))
     end
@@ -48,10 +45,10 @@ function loadMesh_v2(filename)
         mcenter = mcenter + area / 3 * (pt1+pt2+pt3);
         totalarea = totalarea + area;
     end
-    mcenter = mcenter ./ totalarea;
+    mcenter = mcenter / totalarea;
     newMesh.vertices = newMesh.vertices .- mcenter';
-    diag = maximum(sum(.^(newMesh.vertices,2),2),1);
-    newMesh.vertices = newMesh.vertices ./ sqrt(diag);
+    diag = maximum(sum(newMesh.vertices.^2, dims=2), dims=1);
+    newMesh.vertices = newMesh.vertices / sqrt(diag[1]);
 
     return newMesh
 end

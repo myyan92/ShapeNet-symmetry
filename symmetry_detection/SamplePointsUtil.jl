@@ -1,5 +1,6 @@
 module SamplePointsUtil
 
+using LinearAlgebra
 using FileIO
 using MeshIO
 
@@ -44,7 +45,7 @@ function SamplePoints(vertices, faces, numPoints)
         p2 = vertices[f[2], :]
         p3 = vertices[f[3], :]
         
-        if any(isnan(p1)) || any(isinf(p1)) || any(isnan(p2)) || any(isinf(p2)) || any(isnan(p3)) || any(isinf(p3))
+        if any(isnan, p1) || any(isinf, p1) || any(isnan, p2) || any(isinf, p2) || any(isnan, p3) || any(isinf, p3)
             continue
         end
 

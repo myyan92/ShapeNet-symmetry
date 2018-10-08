@@ -2,13 +2,13 @@ module RefineAxisLib
 
 push!(LOAD_PATH, pwd())
 
+using Printf
+using LinearAlgebra
 using MeshIO
 using FileIO
 using SamplePointsUtil
 using ICPUtil
 using TransformUtil
-#include("./ConnectedComponent.jl")
-#include("./symmetrySpectral.jl")
 
 export refineAxis_reflect, refineAxis_C, refineAxis_D, refineSym
 
@@ -26,7 +26,7 @@ function refineAxis_reflect(points, axis, log)
     @printf(log, "%s\n", "refine_reflect:")
     transform = axis2matrix(axis, -1)
     points_trans = transform * points'
-    TR,TT,ER,t = icp(points', points_trans, 50, Minimize="point", WorstReject=0.1)
+    TR,TT,ER = icp(points', points_trans, 50, Minimize="point", WorstReject=0.1)
     transform = TR * transform
     @printf(log, "%f %f\n", ER[1], ER[end])
     if ER[1] < thresh_start() && ER[end] < thresh_end()
@@ -51,10 +51,10 @@ function refineAxis_C(points, axis, degree, reflectPose, log)
     isreflect = true
     for j = 1:degree
         points_trans = baserotation * points'
-        TR,TT,ER,t = icp(points', points_trans, 1, Minimize="point")
+        TR,TT,ER = icp(points', points_trans, 1, Minimize="point")
         @printf(log, "%f ", ER[1])
         if ER[1] < thresh_start()
-            TR,TT,ER,t = icp(points', points_trans, 50, Minimize="point")
+            TR,TT,ER = icp(points', points_trans, 50, Minimize="point")
             @printf(log, "%f", ER[end])
             axis_t, degree_t, reflect_t = matrix2axis(TR*baserotation)
             @printf(log, " %f", degree_t)
@@ -63,10 +63,10 @@ function refineAxis_C(points, axis, degree, reflectPose, log)
         err_rotate[j] = ER[end]
         @printf(log, "\n")
         points_trans = basereflection * points'
-        TR,TT,ER,t = icp(points', points_trans, 1, Minimize="point")
+        TR,TT,ER = icp(points', points_trans, 1, Minimize="point")
         @printf(log, "%f ", ER[1])
         if ER[1] < thresh_start()
-            TR,TT,ER,t = icp(points', points_trans, 50, Minimize="point")
+            TR,TT,ER = icp(points', points_trans, 50, Minimize="point")
             @printf(log, "%f", ER[end])
             if ER[end] < thresh_end() valid_reflect[j]=1; end  
         end
@@ -88,7 +88,7 @@ function refineAxis_C(points, axis, degree, reflectPose, log)
     
     valid_reflect = reshape(valid_reflect, div(degree, degree_f), degree_f)
     err_reflect = reshape(err_reflect, div(degree, degree_f), degree_f)
-    errSum = sum(err_reflect, 2)
+    errSum = sum(err_reflect, dims=2)
     minerr = 100
     for k = 1:size(valid_reflect, 1)
         if all(valid_reflect[k,:] .>= 0.5) && errSum[k] < minerr
@@ -115,19 +115,19 @@ function refineAxis_C(points, axis, degree, reflectPose, log)
         baserotation = transform
         for j = 1:degree_f-1
             points_trans = baserotation * points'
-            TR,TT,ER,t = icp(points', points_trans, 50, Minimize="point", WorstReject=0.1)
+            TR,TT,ER = icp(points', points_trans, 50, Minimize="point", WorstReject=0.1)
             axis_t, degree_t, reflect_t = matrix2axis(TR*baserotation)
             if degree_t != 0
                 if dot(vec(axis), vec(axis_t)) < 0 axis_t = -axis_t; end
                 translate = TT - dot(TT, axis_t)/norm(axis_t) * axis_t
-                translate = translate + cross(axis_t, translate)./norm(axis_t)./tan(degree_t/2)            
-                translate_f -= translate./2
+                translate = translate + cross(axis_t, translate) / norm(axis_t) / tan(degree_t/2)            
+                translate_f -= translate / 2
                 axis_f = axis_f + axis_t
-                points = points .- (translate' ./ 2)
+                points = points .- (translate' / 2)
             end
             baserotation = transform * baserotation
         end
-        axis_f = axis_f ./ norm(axis_f)
+        axis_f = axis_f / norm(axis_f)
     end
     if isreflect
         transform = axis2matrix(axis_f, degree)
@@ -136,15 +136,15 @@ function refineAxis_C(points, axis, degree, reflectPose, log)
             basereflection = transform * basereflection
         end
         points_trans = basereflection * points'
-        TR,TT,ER,t = icp(points', points_trans, 50, Minimize="point", WorstReject=0.1)
+        TR,TT,ER = icp(points', points_trans, 50, Minimize="point", WorstReject=0.1)
         axis_t, degree_t, reflect_t = matrix2axis(TR*basereflection)
         reflectPose_f = - cross(vec(axis_f), vec(axis_t))
         if dot(reflectPose_f, reflectPose) < 0
             reflectPose_f = -reflectPose_f
         end
-        reflectPose_f = reflectPose_f ./ norm(reflectPose_f)
+        reflectPose_f = reflectPose_f / norm(reflectPose_f)
         if (norm(translate_f)==0)
-            translate_f = dot(TT, axis_t)/norm(axis_t) .* axis_t .* (-0.5)
+            translate_f = dot(TT, axis_t)/norm(axis_t) .* axis_t * (-0.5)
         end
     else 
         reflectPose_f = reflectPose
@@ -193,7 +193,7 @@ function refineAxis_D(points, axis, degree, reflectPose, log)
         if !isempty(axis_h)
             symType = "Cs"
             axis = cross(vec(axis_h), vec(reflectPose))
-            axis = axis ./ norm(axis)
+            axis = axis / norm(axis)
             reflectPose = cross(axis_h, axis)
         end
         return vec(axis), vec(reflectPose), vec(translate), degree, symType
@@ -219,7 +219,7 @@ function refineAxis_D(points, axis, degree, reflectPose, log)
         points = points .+ translate'
         for j = 1:degree
             points_trans = baseDRotate * points'
-            TR,TT,ER,t = icp(points', points_trans, 1, Minimize="point")
+            TR,TT,ER = icp(points', points_trans, 1, Minimize="point")
             @printf(log, "%f \n", ER[1])
             if ER[1] < thresh_end() valid_D[j]=1; end
             baseDRotate = transform * baseDRotate
@@ -236,7 +236,7 @@ function refineAxis_D(points, axis, degree, reflectPose, log)
     vec(axis), vec(reflectPose), vec(translate), degree, symType
 end
 
-type Axis
+mutable struct Axis
     class::AbstractString
     degree::Int64
     coordinate::Array{Float64, 2}
@@ -252,9 +252,9 @@ function refineSym(proposal, coordinate, points, log)
         if !isempty(axis)
             symtype = "Cs"
             degree = -1
-            coordinate[:,1] = axis ./ norm(axis)
+            coordinate[:,1] = axis / norm(axis)
             coordinate[:,2] = coordinate[:,2] - dot(coordinate[:,2],coordinate[:,1]) .* coordinate[:,1]
-            coordinate[:,2] = coordinate[:,2] ./ norm(coordinate[:,2])
+            coordinate[:,2] = coordinate[:,2] / norm(coordinate[:,2])
             coordinate[:,3] = cross(coordinate[:,1], coordinate[:,2])
         else
             translate = zeros(3,1)
@@ -263,10 +263,10 @@ function refineSym(proposal, coordinate, points, log)
         end
     elseif (proposal.class == "C")
         axis, reflectPose, translate, degree, symType = refineAxis_C(points, coordinate[:,2], proposal.degree, coordinate[:,3], log)
-        coordinate[:,2] = axis ./ norm(axis)
+        coordinate[:,2] = axis / norm(axis)
         coordinate[:,3] = reflectPose
         coordinate[:,3] = coordinate[:,3] - dot(coordinate[:,3],coordinate[:,2]) .* coordinate[:,2]
-        coordinate[:,3] = coordinate[:,3] ./ norm(coordinate[:,3])
+        coordinate[:,3] = coordinate[:,3] / norm(coordinate[:,3])
         coordinate[:,1] = cross(coordinate[:,2], coordinate[:,3])
         degree = min(degree, 20)
         if symtype == "Cs"
@@ -274,10 +274,10 @@ function refineSym(proposal, coordinate, points, log)
         end
     elseif (proposal.class == "D")
         axis, reflectPose, translate, degree, symtype = refineAxis_D(points, coordinate[:,2], proposal.degree, coordinate[:,3], log)
-        coordinate[:,2] = axis ./ norm(axis)
+        coordinate[:,2] = axis / norm(axis)
         coordinate[:,3] = reflectPose
         coordinate[:,3] = coordinate[:,3] - dot(coordinate[:,3],coordinate[:,2]) .* coordinate[:,2]
-        coordinate[:,3] = coordinate[:,3] ./ norm(coordinate[:,3])
+        coordinate[:,3] = coordinate[:,3] / norm(coordinate[:,3])
         coordinate[:,1] = cross(coordinate[:,2], coordinate[:,3])
         degree = min(degree, 20)
         if symtype == "Cs"
