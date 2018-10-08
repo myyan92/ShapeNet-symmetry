@@ -1,16 +1,14 @@
 module TransformUtil
 
-using LinearAlgebra
-
 export axis2matrix, matrix2axis
 
 function axis2matrix(axis, degree)
-    matrix = Matrix{Float64}(I, 3, 3)
+    matrix = eye(3, 3)
     if degree == -1
         axis = axis / norm(axis)
         matrix = matrix - 2 * axis * axis'
     elseif degree == 1
-        matrix = Matrix{Float64}(I, 3, 3)
+        matrix = eye(3, 3)
     else 
         angle = 2 * pi / degree
         a = cos(angle/2)
@@ -30,9 +28,9 @@ function axis2matrix(axis, degree)
 end
 
 function matrix2axis(transform)
-    D, V = eigen(transform)
+    D, V = eig(transform)
     reflection = sign(det(transform))
-    if sum((transform - reflection*I).^2) < 0.001
+    if sum((transform - reflection*eye(3,3)).^2) < 0.001
         axis = [0,0,0]
         ang = 0
     else

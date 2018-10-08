@@ -1,7 +1,5 @@
 module ShapeContextLib
 
-using LinearAlgebra
-using FFTW
 
 export ShapeContext
 
@@ -10,7 +8,7 @@ function XYZToZRT(point, ex, ey, ez)
     y = point[1]*ey[1] + point[2]*ey[2] + point[3]*ey[3]
     z = point[1]*ez[1] + point[2]*ez[2] + point[3]*ez[3]
     z = abs(z)
-    theta = atan(y, x)
+    theta = atan2(y, x)
     if theta < 0.0 theta += 2*pi end
     radius = sqrt(x*x + y*y)
     return z, radius, theta
@@ -36,9 +34,9 @@ function ShapeContext(points, radius=0.6, rbin=5, hbin=5, abin=128)
     radi_q = zeros(Int32, size(points, 1),1)
     angle_q = zeros(Int32, size(points, 1),1)
     hist = zeros(abin, hbin, rbin)
-    Fhist = zeros(ComplexF32, abin, hbin, rbin)
+    Fhist = zeros(Complex64, abin, hbin, rbin)
     for p = 1:size(points, 1)
-        broadcast!(-, points_temp, points, view(points, p:p, :))
+        broadcast!(-, points_temp, points, sub(points, p, :))
 
         ez = points[p,:] / norm(points[p,:])
         ex = cross(Float64[0,0,1], vec(ez))
@@ -51,7 +49,7 @@ function ShapeContext(points, radius=0.6, rbin=5, hbin=5, abin=128)
         
         for i = 1:size(points, 1)
             r[i] = sqrt(points_temp[i,1]^2+points_temp[i,2]^2+points_temp[i,3]^2)
-            height[i], radi[i], angle[i] = XYZToZRT(view(points_temp, i, :), ex, ey, ez)
+            height[i], radi[i], angle[i] = XYZToZRT(sub(points_temp, i, :), ex, ey, ez)
         end
 
         discretize!(height_q, height,  radius/hbin)

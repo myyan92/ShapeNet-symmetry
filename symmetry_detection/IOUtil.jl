@@ -1,15 +1,16 @@
 module IOUtil
 
-using LinearAlgebra
-using Printf
 using MeshIO
 using FileIO
 
 export MeshType, loadMesh, loadMesh_v2, saveSymmetry, readSymmetry, saveSymmetryAxis
 
-mutable struct MeshType
+type MeshType
   vertices::Array
   faces::Array
+
+  MeshType() = new([], [])
+  MeshType(vertices, faces) = new(vertices, faces)
 end
 
 function loadMesh(synsetID, modelname)
@@ -27,7 +28,7 @@ function loadMesh_v2(filename)
     end
     f = zeros(Int32, size(model.faces, 1),3);
     for i = 1:size(model.faces,1)
-        f[i,:] = [model.faces[i][1], model.faces[i][2], model.faces[i][3]];
+        f[i,:] = [model.faces[i][1]+1, model.faces[i][2]+1, model.faces[i][3]+1];
     end
     newMesh = MeshType(v, [])
     for i = 1:size(f, 1)
@@ -47,8 +48,8 @@ function loadMesh_v2(filename)
     end
     mcenter = mcenter / totalarea;
     newMesh.vertices = newMesh.vertices .- mcenter';
-    diag = maximum(sum(newMesh.vertices.^2, dims=2), dims=1);
-    newMesh.vertices = newMesh.vertices / sqrt(diag[1]);
+    diag = maximum(sum(newMesh.vertices.^2, 2), 1);
+    newMesh.vertices = newMesh.vertices ./ sqrt(diag);
 
     return newMesh
 end

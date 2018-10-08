@@ -1,6 +1,5 @@
 module SamplePointsUtil
 
-using LinearAlgebra
 using FileIO
 using MeshIO
 

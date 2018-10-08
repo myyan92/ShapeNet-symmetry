@@ -1,7 +1,5 @@
 module ICPUtil
 
-using LinearAlgebra
-using Statistics
 using Distances
 using NearestNeighbors
 
@@ -30,10 +28,10 @@ function eq_point(q,p)
     n = size(q,2);
 
     # find data centroid and deviations from centroid
-    q_bar = sum(q, dims=2) / n;
+    q_bar = sum(q, 2) / n;
     q_mark = broadcast(-, q, q_bar);
     # find data centroid and deviations from centroid
-    p_bar = sum(p, dims=2) / m;
+    p_bar = sum(p, 2) / m;
     p_mark = broadcast(-, p, p_bar);
     
     N = p_mark*q_mark'; 
@@ -54,12 +52,12 @@ function eq_plane(q,p,n)
     cn = vcat(c,n);
     C = cn*cn';
 
-    b = -[sum((p-q).*repeat(cn[1,:],3,1).*n);
-          sum((p-q).*repeat(cn[2,:],3,1).*n);
-          sum((p-q).*repeat(cn[3,:],3,1).*n);
-          sum((p-q).*repeat(cn[4,:],3,1).*n);
-          sum((p-q).*repeat(cn[5,:],3,1).*n);
-          sum((p-q).*repeat(cn[6,:],3,1).*n)];
+    b = -[sum((p-q).*repmat(cn[1,:],3,1).*n);
+          sum((p-q).*repmat(cn[2,:],3,1).*n);
+          sum((p-q).*repmat(cn[3,:],3,1).*n);
+          sum((p-q).*repmat(cn[4,:],3,1).*n);
+          sum((p-q).*repmat(cn[5,:],3,1).*n);
+          sum((p-q).*repmat(cn[6,:],3,1).*n)];
 
     X = C\b;
     cx = cos(X[1]); cy = cos(X[2]); cz = cos(X[3]); 
@@ -83,16 +81,16 @@ function lsqnormest(p, k)
     m = size(p,2)
     n = zeros(3,m)
 
-    kdtree = KDTree(Array(p))
+    kdtree = KDTree(p)
     neighbors, dists = knn(kdtree, p, k+1, true)
 
     for i = 1:m
         x = p[:,neighbors[i][2:end]]
-        p_bar = 1/k * sum(x, dims=2)
+        p_bar = 1/k * sum(x, 2)
         x = broadcast(-, x, p_bar)
         P = x * x';
 
-        D,V = eigen(P)
+        D,V = eig(P)
         idx = indmin(D) 
         n[:,i] = V[:,idx];   
     end
@@ -147,12 +145,12 @@ function icp(q,p,k=10, normal=[]; Matching="kDtree", Minimize="plane", ReturnAll
 
     # Initialize temporary transform vector and matrix.
     T = zeros(3,1);
-    R = Matrix{Float64}(I, 3,3);
+    R = eye(3,3);
 
     # Initialize total transform vector(s) and rotation matric(es).
     TT = zeros(3,1, k+1);
     TR = zeros(3,3, k+1);
-    TR[:,:,1] = Matrix{Float64}(I, 3,3);
+    TR[:,:,1] = eye(3,3);
 
     # If Minimize == "plane", normals are needed
     if (Minimize == "plane") && isempty(normal)
@@ -161,7 +159,7 @@ function icp(q,p,k=10, normal=[]; Matching="kDtree", Minimize="plane", ReturnAll
 
     # If Matching == 'kDtree', a kD tree should be built (req. Stat. TB >= 7.3)
     if Matching == "kDtree"
-        kdtree = KDTree(Array(q));
+        kdtree = KDTree(q);
     end
 
     # Go into main iteration loop
@@ -199,7 +197,7 @@ function icp(q,p,k=10, normal=[]; Matching="kDtree", Minimize="plane", ReturnAll
         TT[:,:,dk+1] = R*TT[:,:,dk]+T;
 
         # Apply last transformation
-        pt = TR[:,:,dk+1] * p + repeat(TT[:,:,dk+1], 1, Np);
+        pt = TR[:,:,dk+1] * p + repmat(TT[:,:,dk+1], 1, Np);
         ER[dk+1] = rms_error(q[:,vec(q_idx)], pt[:,vec(p_idx)]);
         if ER[dk]-ER[dk+1] < 1e-4 
             TR = TR[:,:,1:dk+1]

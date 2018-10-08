@@ -363,6 +363,6 @@ pop!(lines)
 synsets = [split(l, ' ')[1] for l in lines]
 models = [split(l, ' ')[2] for l in lines]
 println(size(models,1))
-pmap(main, synsets, models)
-#main(synsets[1], models[1])
-#main("02747177", "16521a9446e3de14a6f567d4d1e09ecb") # test symSpectral
+#pmap(main, synsets, models)
+main(synsets[1], models[1])
+main("02747177", "16521a9446e3de14a6f567d4d1e09ecb") # test symSpectral

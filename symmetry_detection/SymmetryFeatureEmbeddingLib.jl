@@ -1,9 +1,5 @@
 module SymmetryFeatureEmbeddingLib
 
-using Printf
-using LinearAlgebra
-using Statistics
-using AbstractFFTs
 using MeshIO
 using FileIO
 using Distances
@@ -31,8 +27,8 @@ function estimateDegree(points, axis)
     ey = cross(ez, ex)
     height = points * ez
     inplane = points - height * ez'
-    radi = sqrt(sum(inplane.^2, dims=2))
-    inplane = broadcast(/, inplane, radi)
+    radi = sqrt(sum(inplane.^2, 2))
+    inplane = broadcast(./, inplane, radi)
     ang = acos(clamp(inplane * ex, -1.0, 1.0))  #angle is another function
     reflect = inplane * ey
     f_reflect(x) = x<0
@@ -58,7 +54,7 @@ function estimateDegree(points, axis)
     Descriptor[maxval .< 0.55] = 20
     Descriptor[Descriptor .> 20] = 20
     phase = [rphi[Descriptor[i]+1, i] for i in 1:2*hbin]
-    phase = - broadcast(/, vec(phase), vec(Descriptor)) + pi/abin
+    phase = - broadcast(./, vec(phase), vec(Descriptor)) + pi/abin
     maxpos = zeros(3, size(phase,1))
     for i = 1:size(phase,1)
         maxpos[:,i] = cos(phase[i]) * ex + sin(phase[i]) * ey
@@ -88,7 +84,7 @@ function symLevel(symType)
 end 
 
 function get_canonical(reflectNormal, rotationAxis, reflectPose, symType)
-    canonical_dir = Matrix{Float64}(I, 3,3)
+    canonical_dir = eye(3,3)
     if symType=="E"
         return canonical_dir
     elseif symType=="Cs"
@@ -131,7 +127,7 @@ function detectSelfSymmetry(Mesh, log)
         totalarea = totalarea + area
     end
     Cov = Cov / totalarea
-    eigenval, eigenvec = eigen(Cov)
+    eigenval, eigenvec = eig(Cov)
     idx = sortperm(eigenval)
     eigenval = eigenval[idx]
     eigenvec = eigenvec[:,idx]
@@ -152,7 +148,7 @@ function detectSelfSymmetry(Mesh, log)
 
     #suggest promising symmetry
     symType = "E"
-    canonical_dir = Matrix{Float64}(I, 3, 3)
+    canonical_dir = eye(3, 3)
     translate = zeros(3,1)
 
     if eigenval[1]/eigenval[2] < 0.84 && eigenval[2]/eigenval[3] < 0.84  # A little less than sqrt(3)/2
@@ -196,14 +192,14 @@ function detectSelfSymmetry(Mesh, log)
         for i in eachindex(dists)
             dists[i] = exp(- dists[i]^2 / 0.02)
         end
-        broadcast!(/, dists, dists, sum(dists, dims=2))
+        broadcast!(./, dists, dists, sum(dists, 2))
         Xs = deepcopy(points)
         for t = 1:10
             Xs = dists * Xs
         end
-        Xs_c = mean(Xs, dims=1)
+        Xs_c = mean(Xs, 1)
         Cov = Xs'*Xs / size(Xs, 1) - Xs_c'*Xs_c
-        val, dir = eigen(Cov)
+        val, dir = eig(Cov)
         idx = sortperm(val)
         val = val[idx]
         dir = dir[:, idx]
@@ -330,7 +326,7 @@ function detectSelfSymmetry(Mesh, log)
                         symType = "T"
                     else
                         symType = "O3"
-                        canonical_dir = Matrix{Float64}(I. 3, 3)
+                        canonical_dir = eye(3, 3)
                     end
                 end
             end                

@@ -1,7 +1,5 @@
 module SymmetrySpectralLib
 
-using LinearAlgebra
-using Statistics
 using Distances
 using NearestNeighbors
 using ICPUtil
@@ -13,8 +11,8 @@ export refineTransform, processSymmetry, symmetrySpectral
 function calculateTransformation(reflection, point_x1, point_x2, point_y1, point_y2)
     point_x = point_x1 / norm(point_x1)
     point_y = point_y1 / norm(point_y1)
-    diff_x = point_x2 - point_x * (point_x2 * point_x')
-    diff_y = point_y2 - point_y * (point_y2 * point_y')
+    diff_x = point_x2 - point_x .* (point_x2 * point_x')
+    diff_y = point_y2 - point_y .* (point_y2 * point_y')
     diff_x = diff_x / norm(diff_x)
     diff_y = diff_y / norm(diff_y)
     cross_x = cross(vec(point_x), vec(diff_x))
@@ -154,7 +152,7 @@ function symmetrySpectral(points::Array{Float64}, desc::Array{Float64})
     numMaxCal = 400
     symtrans = []
     symscore = []
-    kdtree = KDTree(Array(points'))
+    kdtree = KDTree(points')
     pointdists = pairwise(Euclidean(), points')
     validpairs = (dists .< 0.15) & (pointdists .> 0.1)
     istrue(x) = x==true

@@ -2,8 +2,6 @@ module RefineAxisLib
 
 push!(LOAD_PATH, pwd())
 
-using Printf
-using LinearAlgebra
 using MeshIO
 using FileIO
 using SamplePointsUtil
@@ -88,7 +86,7 @@ function refineAxis_C(points, axis, degree, reflectPose, log)
     
     valid_reflect = reshape(valid_reflect, div(degree, degree_f), degree_f)
     err_reflect = reshape(err_reflect, div(degree, degree_f), degree_f)
-    errSum = sum(err_reflect, dims=2)
+    errSum = sum(err_reflect, 2)
     minerr = 100
     for k = 1:size(valid_reflect, 1)
         if all(valid_reflect[k,:] .>= 0.5) && errSum[k] < minerr
@@ -236,7 +234,7 @@ function refineAxis_D(points, axis, degree, reflectPose, log)
     vec(axis), vec(reflectPose), vec(translate), degree, symType
 end
 
-mutable struct Axis
+type Axis
     class::AbstractString
     degree::Int64
     coordinate::Array{Float64, 2}
