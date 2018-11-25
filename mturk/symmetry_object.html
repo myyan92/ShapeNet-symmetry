@@ -1,0 +1,282 @@
+<html>
+  <head>
+    <title>Indicate if there is a change in the image</title>
+    <!-- simpleamt depends on these libraries -->
+    <script src='//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js'></script>
+    <script src='//cdnjs.cloudflare.com/ajax/libs/json3/3.3.2/json3.min.js'></script>    
+    <!-- end of required libraries -->
+    <script src='//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js'></script>
+    <script src='//cdnjs.cloudflare.com/ajax/libs/underscore.js/1.9.1/underscore-min.js'></script>
+    <link href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+      #text-area {
+        margin: 10px 0;
+        font-size: 24pt;
+      }
+      #button-div {
+        margin-bottom: 10px;
+      }
+      #counter {
+        margin: 0 10px;
+        font-size: 20pt;
+        font-weight: bold;
+      }
+      img {
+        height: 500px;
+      }
+      .bordered {
+        border-style: solid;
+        border-width: 1px;
+        border-color: gray;
+      }
+    </style>
+  </head>
+  <body>
+    <div class='container'>
+      <h2>Hover over to image to see if the image changes</h2>
+    </div>
+
+    <div class='container-fluid'>
+      <div class='row'>
+        <div class='col-xs-12 text-center'>
+          <div id='choices' class='btn-group'>
+          </div>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col-xs-12 text-center'>
+          <div id='image-container'>
+          </div>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col-xs-4 col-xs-offset-4 text-center' id='button-div'>
+          <button id='prev-btn' class='btn btn-lg btn-primary' disabled>Back</button>
+          <span id='counter'>
+            <span class='counter-top'></span> / <span class='counter-bottom'></span>
+          </span>
+          <button id='next-btn' class='btn btn-lg btn-primary' disabled>Next</button>
+        </div>
+      </div>
+    </div>
+
+    {% include "hit_templates/simpleamt.html" %}
+
+    <script>
+      $(function() {
+        function toItem(id) {
+          return {
+            id: id,
+            image1: baseImageUrl + id + ".0.tmp.png",
+            image2: baseImageUrl + id + ".1.tmp.png",
+          };
+        }
+
+        var categories = [
+          { "label": "Yes", "value": 1, "shortcut": 'Y'},
+          { "label": "No", "value": 0, "shortcut": 'N'},
+          { "label": "Can't tell", "value": -1, "shortcut": 'X'},
+        ];
+        var valid_values = categories.map(function(x) { return x.value; });
+
+        // Define some default input.
+        var baseImageUrl = "http://shapenet.cs.stanford.edu/shapenet/screenshots/models/symmetry_detection/";
+        var ids = [
+          "02691156/79351c8f83f5a3abb2d09bc8d348e46b_s1_v0",
+          "02691156/783f3f72d5639597ba0d990ae229b477_s1_v1",
+          "02691156/f6b96f56212f55363023a5c0cae3fffe_s1_v1",
+          "02691156/6826af6513566b12f4aab844bf68e35e_s1_v1",
+          "02691156/61bd590e917928f6b6ecbbb2e4d05900_s3_v0"
+        ]; 
+        var DEFAULT_INPUT = ids.map(function(id) {
+          return toItem(id);
+        });
+
+        var input = null;
+        var useKeyshortcuts = true;
+        var keyCodeMap = {};
+
+        // Annotations (parallel to input)
+        var annotationElems = [];
+        var annotations = [];
+
+        // Some variables to track state of the HIT.
+        var idx = 0;
+        var enabled = false;
+
+        function swap_image_source() {
+            var newSource = $(this).data('alt-src');
+            $(this).data('alt-src', $(this).attr('src'));
+            $(this).attr('src', newSource);
+        }
+
+        function createUI() {
+          // Populate choices
+          var choices = $('#choices');
+          for (var i = 0; i < categories.length; i++) {
+            var category = categories[i];
+            var inputElem = $("<input/>").attr("type", "radio").attr("name", category.label)
+                      .attr("value", category.value).prop("hidden", true).prop("disabled", true);
+            var shortcut = (category.shortcut != null)? ' (' + category.shortcut + ')': '';
+            var labelElem = $("<label></label>").attr("class", "btn btn-default")
+                  .text(category.label + shortcut) 
+                  .attr("title", category.description).append(inputElem);
+            var categoryButton = $("<div></div>").attr("class", "radio-inline").append(labelElem).prop("disabled", true);
+            choices.append(categoryButton);
+            annotationElems.push({ radio: inputElem, button: categoryButton });
+            if (category.shortcut != null) {
+              keyCodeMap[category.shortcut.toUpperCase().charCodeAt(0)] = i;
+            }
+          }
+        }
+
+        function preloadImages(images) {
+          // Preload all images
+          var imgs = [];
+          _.each(images, function(img_url) {
+            var img = new Image();
+            img.onload = function() { console.log('loaded image from ' + img_url); };
+            img.src = img_url;
+          });
+        }
+
+        function main() {
+          // If this is a HIT on AMT, then replace the default input with the real input.
+          input = simpleamt.getInput(DEFAULT_INPUT);
+          input = input.map(function(item) {
+            if (typeof item === 'string') {
+              return toItem(item);
+            } else {
+              return item;
+            }
+          });
+
+          createUI();
+
+          // Enable the UI if the HIT is not in preview mode.
+          if (!simpleamt.isPreview()) {
+            enable_hit();
+          }
+
+          // Set up the annotations.
+          _.each(input, function() { annotations.push(null); });
+
+          preloadImages(input.map(function(x) { return x.image1; }));
+          preloadImages(input.map(function(x) { return x.image2; }));
+
+          render();
+        }
+
+        function showAnnotation(value) {
+          $('#choices').find('label').removeClass('active');
+          $('#choices').find('label input').prop('checked', false);
+          if (value) {
+            var inputElem = $('#choices').find('label input[value=' + value + ']');
+            inputElem.prop('checked', true);
+            inputElem.parent().addClass('active');
+          }
+        }
+
+        // Use the current index to update the image and description
+        function render() {
+          // Set up the image
+          $('#image-container').empty();
+          $('<img>').attr('src', input[idx].image1)
+            .data('alt-src', input[idx].image2)
+            .addClass('withHover')
+            .addClass('bordered')
+            .appendTo($('#image-container'));
+          $('img.withHover').hover(swap_image_source, swap_image_source);
+
+          showAnnotation(annotations[idx]);
+
+          // Refresh the counter
+          $('.counter-top').text(idx + 1);
+          $('.counter-bottom').text(input.length);
+
+          // If the UI is enabled, enable or disable the buttons depending on
+          // the index.
+          if (enabled) {
+            var prev_btn = $('#prev-btn');
+            var next_btn = $('#next-btn');
+            prev_btn.prop('disabled', true);
+            next_btn.prop('disabled', true);
+            if (idx > 0) {
+              prev_btn.prop('disabled', false);
+            }
+            if (idx < input.length - 1) next_btn.prop('disabled', false);
+          }
+        }
+
+        // Save current annotation
+        function save_current() {
+          annotations[idx] = $('#choices input:radio:checked').val();
+          // console.log('save', annotations[idx], idx);
+        }
+
+        // Update the index, and save the text in the text area.
+        function set_idx(new_idx) {
+          if (new_idx < 0 || new_idx >= input.length) return;
+          save_current();
+
+          idx = new_idx;
+          render();
+        }
+
+        function hookupKeys() {
+          if (useKeyshortcuts) {
+            window.addEventListener("keyup", function (event) {
+              var tagName = (event.target || event.srcElement).tagName;
+              var isInputText = (tagName === 'INPUT' || tagName === 'SELECT' || tagName === 'TEXTAREA');
+              if (!isInputText) {
+                var index = keyCodeMap[event.keyCode];
+                if (index != null) {
+                  annotationElems[index].radio.click();
+                  annotationElems[index].button.click();
+                  return false;
+                }
+              }
+            });
+          }
+        }
+
+        // Enable the UI.
+        function enable_hit() {
+          enabled = true;
+
+          // Enable components
+          $('#next-btn').click(function() { set_idx(idx + 1); });
+          $('#prev-btn').click(function() { set_idx(idx - 1); });
+          $('#submit-btn').prop('disabled', false);
+          for (var i = 0; i < annotationElems.length; i++) {
+            var inputElem = annotationElems[i];
+            inputElem.radio.prop('disabled', false);
+            inputElem.button.prop('disabled', false);
+            inputElem.button.click(function(event) {
+              $('#choices').find('label').removeClass('active');
+              $(this).find('label').addClass('active');
+            });
+          }
+          hookupKeys();
+
+          // Set up submit handler.
+          simpleamt.setupSubmit();
+          $('#submit-btn').click(function() {
+            save_current();
+            var invalidIndex = _.findIndex(annotations, function(d) { return d == null || valid_values.indexOf(d) < 0; });
+            if (invalidIndex >= 0) {
+              alert('Not all images annotated. Correct entry #' + (invalidIndex+1) + ' before submitting.');
+              return false;
+            }
+            var output = _.map(_.zip(input, annotations), function(x) {
+              return {'id': x[0].id, 'annotation': x[1]};
+            });
+            simpleamt.setOutput(output);
+          });
+        }
+
+        main();
+      });
+    </script>
+  </body>
+</html>
