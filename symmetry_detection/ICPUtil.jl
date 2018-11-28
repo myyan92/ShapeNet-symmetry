@@ -178,6 +178,7 @@ function icp(q,p,k=10, normal=[]; Matching="kDtree", Minimize="plane", ReturnAll
             for i in idx[edge:end]
                 p_idx[i] = false;
             end
+
             q_idx = match[vec(p_idx)];
             mindist = mindist[vec(p_idx)];
         end
@@ -199,7 +200,7 @@ function icp(q,p,k=10, normal=[]; Matching="kDtree", Minimize="plane", ReturnAll
         # Apply last transformation
         pt = TR[:,:,dk+1] * p + repmat(TT[:,:,dk+1], 1, Np);
         ER[dk+1] = rms_error(q[:,vec(q_idx)], pt[:,vec(p_idx)]);
-        if ER[dk]-ER[dk+1] < 1e-4 
+        if ER[dk]-ER[dk+1] < 1e-5 
             TR = TR[:,:,1:dk+1]
             TT = TT[:,:,1:dk+1]
             ER = ER[1:dk+1]
@@ -212,7 +213,21 @@ function icp(q,p,k=10, normal=[]; Matching="kDtree", Minimize="plane", ReturnAll
         TT = TT[:,:,end];
     end
 
-    TR, vec(TT), ER
+    if Matching == "kDtree"
+        kdtree = KDTree(q);
+        match, mindist = match_kDtree(q,pt,kdtree);
+        final_dist = maximum(mindist)
+        kdtree = KDTree(pt);
+        match, mindist = match_kDtree(pt,q,kdtree);
+        final_dist = max(final_dist, maximum(mindist))
+    else
+        match, mindist = match_bruteForce(q,pt);
+        final_dist = maximum(mindist)
+        match, mindist = match_bruteForce(pt,q);
+        final_dist = max(final_dist, maximum(mindist))
+    end
+
+    TR, vec(TT), ER, final_dist
     
 end
 

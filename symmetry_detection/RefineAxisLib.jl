@@ -15,7 +15,7 @@ function thresh_start()
 end
 
 function thresh_end()
-    return 0.035
+    return 0.08
 end
 
 #axis is the normal of the reflection plane. 
@@ -24,10 +24,10 @@ function refineAxis_reflect(points, axis, log)
     @printf(log, "%s\n", "refine_reflect:")
     transform = axis2matrix(axis, -1)
     points_trans = transform * points'
-    TR,TT,ER = icp(points', points_trans, 50, Minimize="point", WorstReject=0.1)
+    TR,TT,ER,HD = icp(points', points_trans, 100, Minimize="point", WorstReject=0.1)
     transform = TR * transform
-    @printf(log, "%f %f\n", ER[1], ER[end])
-    if ER[1] < thresh_start() && ER[end] < thresh_end()
+    @printf(log, "%f %f %f\n", ER[1], ER[end], HD)
+    if ER[1] < thresh_start() && HD < thresh_end()
         axis, angle, reflect = matrix2axis(transform)
         translate = dot(TT,axis)/norm(axis) * axis * (-0.5)
         return axis, translate
@@ -49,24 +49,24 @@ function refineAxis_C(points, axis, degree, reflectPose, log)
     isreflect = true
     for j = 1:degree
         points_trans = baserotation * points'
-        TR,TT,ER = icp(points', points_trans, 1, Minimize="point")
+        TR,TT,ER,HD = icp(points', points_trans, 1, Minimize="point")
         @printf(log, "%f ", ER[1])
         if ER[1] < thresh_start()
-            TR,TT,ER = icp(points', points_trans, 50, Minimize="point")
-            @printf(log, "%f", ER[end])
+            TR,TT,ER,HD = icp(points', points_trans, 100, Minimize="point")
+            @printf(log, "%f %f", ER[end], HD)
             axis_t, degree_t, reflect_t = matrix2axis(TR*baserotation)
             @printf(log, " %f", degree_t)
-            if ER[end] < thresh_end() && (abs(degree_t-6.283/degree*j)<0.15 || abs(6.283-degree_t-6.283/degree*j)<0.15) valid_rotate[j]=1; end
+            if HD < thresh_end() && (abs(degree_t-6.283/degree*j)<0.15 || abs(6.283-degree_t-6.283/degree*j)<0.15) valid_rotate[j]=1; end
         end
         err_rotate[j] = ER[end]
         @printf(log, "\n")
         points_trans = basereflection * points'
-        TR,TT,ER = icp(points', points_trans, 1, Minimize="point")
+        TR,TT,ER,HD = icp(points', points_trans, 1, Minimize="point")
         @printf(log, "%f ", ER[1])
         if ER[1] < thresh_start()
-            TR,TT,ER = icp(points', points_trans, 50, Minimize="point")
-            @printf(log, "%f", ER[end])
-            if ER[end] < thresh_end() valid_reflect[j]=1; end  
+            TR,TT,ER,HD = icp(points', points_trans, 100, Minimize="point")
+            @printf(log, "%f %f", ER[end], HD)
+            if HD < thresh_end() valid_reflect[j]=1; end  
         end
         err_reflect[j] = ER[end]
         @printf(log, "\n")
@@ -113,7 +113,7 @@ function refineAxis_C(points, axis, degree, reflectPose, log)
         baserotation = transform
         for j = 1:degree_f-1
             points_trans = baserotation * points'
-            TR,TT,ER = icp(points', points_trans, 50, Minimize="point", WorstReject=0.1)
+            TR,TT,ER,HD = icp(points', points_trans, 100, Minimize="point", WorstReject=0.1)
             axis_t, degree_t, reflect_t = matrix2axis(TR*baserotation)
             if degree_t != 0
                 if dot(vec(axis), vec(axis_t)) < 0 axis_t = -axis_t; end
@@ -134,7 +134,7 @@ function refineAxis_C(points, axis, degree, reflectPose, log)
             basereflection = transform * basereflection
         end
         points_trans = basereflection * points'
-        TR,TT,ER = icp(points', points_trans, 50, Minimize="point", WorstReject=0.1)
+        TR,TT,ER,HD = icp(points', points_trans, 100, Minimize="point", WorstReject=0.1)
         axis_t, degree_t, reflect_t = matrix2axis(TR*basereflection)
         reflectPose_f = - cross(vec(axis_f), vec(axis_t))
         if dot(reflectPose_f, reflectPose) < 0
@@ -217,9 +217,9 @@ function refineAxis_D(points, axis, degree, reflectPose, log)
         points = points .+ translate'
         for j = 1:degree
             points_trans = baseDRotate * points'
-            TR,TT,ER = icp(points', points_trans, 1, Minimize="point")
-            @printf(log, "%f \n", ER[1])
-            if ER[1] < thresh_end() valid_D[j]=1; end
+            TR,TT,ER,HD = icp(points', points_trans, 1, Minimize="point")
+            @printf(log, "%f %f\n", ER[1], HD)
+            if HD < thresh_end() valid_D[j]=1; end
             baseDRotate = transform * baseDRotate
         end
         if all(valid_D .>= 0.5)
