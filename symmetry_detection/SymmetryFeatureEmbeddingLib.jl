@@ -140,6 +140,13 @@ function detectSelfSymmetry(Mesh, log)
    
     #fixed point and PCA
     num_points = min(round(Int, 10000/9.0*totalarea), 25000)
+    if (num_points == 0)
+        # symType = "None"
+        # canonical_dir = 0
+        # translate = 0
+        # symType, canonical_dir, translate
+        return "None", 0, 0
+    end
     if num_points == 25000
         @printf(log, "large area, cap number of points to 25000.")
     end

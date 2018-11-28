@@ -1,7 +1,7 @@
 push!(LOAD_PATH, pwd())
 
-numCore = 10
-addprocs(numCore - 1)
+#numCore = 4 #10
+#addprocs(numCore - 1)
 
 using MeshIO
 using FileIO
@@ -13,21 +13,29 @@ const path2obj = "/orions4-zfs/projects/jyau/SymmDetProject/testing/Minhyuk-styl
 # const path2obj = "/orions3-zfs/projects/anastasiad/ShapeNetSymm/Minhyuk-style-OBJ/"
 const path2results = "/orions3-zfs/projects/anastasiad/ShapeNetSymm/Results/03001627/"
 
-@everywhere function main(path2obj, modelname)
+@everywhere function main(modelname)
 	for partnum = 0:1000
-		filename = "/orions4-zfs/projects/jyau/SymmDetProject/testing/Minhyuk-style-OBJ/" * modelname * "/" * "$partnum.obj"
-        if (!isfile(filename))
-        	break
-        end
+	    filename = "/orions4-zfs/projects/jyau/SymmDetProject/testing/Minhyuk-style-OBJ/" * modelname * "/" * "$partnum.obj"
+	    if (!isfile(filename))
+	        break
+	    end
 	    println(filename)
 	    newMesh = loadMesh_v2(filename)
+            # if (length(newMesh.vertices)<5)
+            #     println("mesh has < 5 vertices, continue")
+            #     continue
+            # end
 	    logname = "/orions3-zfs/projects/anastasiad/ShapeNetSymm/Results/03001627/" * modelname * "_$partnum.log"
-	    println(logname)
+	    #println(logname)
 	    fout = open(logname, "w")
 	    symType, canonical, translate = detectSelfSymmetry(newMesh, fout)
+	    if (symType == "None")
+	        println("symType is None, continue")
+	        continue
+	    end
 	    close(fout)
 	    symname = "/orions3-zfs/projects/anastasiad/ShapeNetSymm/Results/03001627/" * modelname * "_$partnum.sym"
-	    println(symname)
+	    #println(symname)
 	    saveSymmetry(symname, symType, translate, canonical)
     end
 end
@@ -39,6 +47,9 @@ println(synsetID)
 models = readall("./all_model_lists/" * synsetID * ".txt")
 models = split(models, '\n')
 println(size(models,1))
-for model_id = 1:size(models,1)
-	main(path2obj[1],models[model_id])
+for model_id = 625:size(models,1)
+        println(model_id)
+	main(models[model_id])
 end
+#pmap(main, models)
+
