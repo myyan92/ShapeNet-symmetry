@@ -30,7 +30,7 @@ function refineTransform(candtrans, points)
     symscores = []
     for transform in candtrans
         points_trans = transform * points'
-        TR,TT,ER = icp(points', points_trans, 50, Minimize="point")
+        TR,TT,ER,HD = icp(points', points_trans, 50, Minimize="point")
         transform = TR * transform
         if ER[end] < 0.035
             push!(symtrans, transform)
