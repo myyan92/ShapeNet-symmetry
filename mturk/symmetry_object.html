@@ -32,9 +32,56 @@
     </style>
   </head>
   <body>
-    <div class='container'>
-      <h2>Hover over to image to see if the image changes</h2>
-    </div>
+    <section class="container" id="Categorization"><!-- Instructions (collapsible) -->
+      <div class="row">
+        <div class="col-xs-12 col-md-12">
+          <div class="panel panel-primary"><!-- WARNING: the ids "collapseTrigger" and "instructionBody" are being used to enable expand/collapse feature -->
+            <div class="panel-heading" role="tab" id="collapseTrigger">
+             <h4 class="panel-title">
+                <strong>Hover over to image to see if the image changes.</strong>
+             </h4>
+            </div>
+            <div class="panel-body" id="instructionHeader">
+              <p>We are trying to understand how people perceive object symmetries.  
+              You will be given <span id="numEntries"></span> pairs of images.  Place you mouse on top and out of the image box to see the different image.  
+              Please indicate if you think the two images are identical ("None"), or if you can detect the two images as being diffrent ("Clearly different").  Select "Tiny" if there is tiny difference that is hard to see but you detect a change, "Slight" if you see a difference but you don't think it is semantically important. Select "N/A" if for something you can't see any images.
+              </p>
+              <p>Click <span style="color: #2e6da4;">"Next"</span> to go to the next item and <span style="color: #4cae4c;">"Submit"</span> when you are done.</p>
+<!--               <p>See the
+                <a class="collapsed" data-parent="#Categorization" data-toggle="collapse" href="#instructionBody" aria-expanded="false" aria-controls="instructionBody">
+                  <strong>Selection Criteria</strong>
+                  <span class="collapse-text">(Click to expand)</span>
+                </a> below for more details.
+              </p>
+ -->
+            </div>
+
+            <div class="panel-body panel-collapse collapse" id="instructionBody" aria-labelledby="collapseTrigger" style="display: none;">
+              <!-- Detailed instructions for the Worker-->
+
+              <table class="table table-condensed table-striped table-responsive">
+                <tbody>
+                </tbody>
+                <colgroup>
+                  <col class="col-xs-2 col-md-2" />
+                  <col class="col-xs-5 col-md-5" />
+                  <col class="col-xs-5 col-md-5" />
+                </colgroup>
+                <!-- By explaining what is or is not included in a category, the accuracy of the answers may increase. -->
+                <tbody id="categoriesTable">
+                  <tr>
+                    <th>Category</th>
+                    <th>Expresses</th>
+                  </tr>
+                  <!-- Add instructions for each category below. Don't forget to rename the categories. -->
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
 
     <div class='container-fluid'>
       <div class='row'>
@@ -73,9 +120,11 @@
         }
 
         var categories = [
-          { "label": "Yes", "value": 1, "shortcut": 'Y'},
-          { "label": "No", "value": 0, "shortcut": 'N'},
-          { "label": "Can't tell", "value": -1, "shortcut": 'X'},
+          { "label": "None", "value": "0", "description": "I can't detect any changes", "shortcut": '1'},
+          { "label": "Tiny", "value": "1", "description": "I think I detect some flickering when hovering over the image, but I can't really pinpoint what is different", "shortcut": '2'},
+          { "label": "Slight", "value": "2", "description": "There are slight differences, but I don't find the differences to be meaningful", "shortcut": '3'},
+          { "label": "Clearly different", "value": "3", "description": "The two images are clearly different", "shortcut": '4'},
+          { "label": "N/A", "value": "-1", "description": "Something is wrong and I can't see any images", "shortcut": 'X'},
         ];
         var valid_values = categories.map(function(x) { return x.value; });
 
@@ -111,6 +160,9 @@
         }
 
         function createUI() {
+          // Populate instructions
+          var numEntriesElem = $('#numEntries');
+          numEntriesElem.text(input.length);
           // Populate choices
           var choices = $('#choices');
           for (var i = 0; i < categories.length; i++) {
@@ -229,6 +281,11 @@
               var tagName = (event.target || event.srcElement).tagName;
               var isInputText = (tagName === 'INPUT' || tagName === 'SELECT' || tagName === 'TEXTAREA');
               if (!isInputText) {
+                if (event.keyCode === 37 /* left arrow */) {
+                  $('#prev-btn').click();
+                } else if (event.keyCode == 39 /* right arrow */) {
+                  $('#next-btn').click();
+                }
                 var index = keyCodeMap[event.keyCode];
                 if (index != null) {
                   annotationElems[index].radio.click();
