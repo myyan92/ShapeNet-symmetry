@@ -1,4 +1,4 @@
-Uses [angel's fork]((https://github.com/angelxuanchang/simple-amt)) of [simple-amt](https://github.com/jcjohnson/simple-amt)
+Uses [angel's fork](https://github.com/angelxuanchang/simple-amt) of [simple-amt](https://github.com/jcjohnson/simple-amt)
 Really the same as the original (just no preview if not qualified and slightly better `get_all_hits.py`) 
 
 `symmetry_object.html` - Template for symmetry verification for objects 
