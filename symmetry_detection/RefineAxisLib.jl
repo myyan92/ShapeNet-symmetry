@@ -8,7 +8,7 @@ using SamplePointsUtil
 using ICPUtil
 using TransformUtil
 
-export refineAxis_reflect, refineAxis_C, refineAxis_D, refineSym
+export refineAxis_reflect, refineAxis_C, refineAxis_D, refineSym, Axis
 
 function thresh_start()
     return 0.15
@@ -170,7 +170,19 @@ function refineAxis_D(points, axis, degree, reflectPose, log)
     @printf(log, "%s\n", "refine_D:")
     axis, reflectPose, translate, degree, symType = refineAxis_C(points, axis, degree, reflectPose, log)
 
-    axis_h, translate_h = refineAxis_reflect(points, axis, log)
+    @printf(log, "%s\n", "test_reflect:")
+    transform = axis2matrix(axis, -1)
+    points_trans = transform * points'
+    TR,TT,ER,HD = icp(points', points_trans, 1, Minimize="point", WorstReject=0.1)
+    transform = TR * transform
+    @printf(log, "%f %f\n", ER[1], HD)
+    if HD < thresh_end()
+        axis_h, angle, reflect = matrix2axis(transform)
+        translate_h = dot(TT,axis_h)/norm(axis_h) * axis_h * (-0.5)
+    else
+        axis_h, translate_h = refineAxis_reflect(points, axis, log)
+    end
+
     if isempty(axis_h)
         @printf(log, "%s\n", "D reflect fail")
     else
@@ -246,37 +258,30 @@ function refineSym(proposal, coordinate, points, log)
         symtype = "E"
         degree = 1
     elseif (proposal.class == "R")
-        axis, translate = refineAxis_reflect(points, coordinate[:,1], log)
+        axis, translate = refineAxis_reflect(points, coordinate[:,3], log)
         if !isempty(axis)
             symtype = "Cs"
             degree = -1
-            coordinate[:,1] = axis / norm(axis)
-            coordinate[:,2] = coordinate[:,2] - dot(coordinate[:,2],coordinate[:,1]) .* coordinate[:,1]
+            coordinate[:,3] = axis / norm(axis)
+            coordinate[:,2] = coordinate[:,2] - dot(coordinate[:,2],coordinate[:,3]) .* coordinate[:,3]
             coordinate[:,2] = coordinate[:,2] / norm(coordinate[:,2])
-            coordinate[:,3] = cross(coordinate[:,1], coordinate[:,2])
+            coordinate[:,1] = cross(coordinate[:,2], coordinate[:,3])
         else
             translate = zeros(3,1)
             symtype = "E"
             degree = 1
         end
-    elseif (proposal.class == "C")
-        axis, reflectPose, translate, degree, symType = refineAxis_C(points, coordinate[:,2], proposal.degree, coordinate[:,3], log)
-        coordinate[:,2] = axis / norm(axis)
-        coordinate[:,3] = reflectPose
-        coordinate[:,3] = coordinate[:,3] - dot(coordinate[:,3],coordinate[:,2]) .* coordinate[:,2]
-        coordinate[:,3] = coordinate[:,3] / norm(coordinate[:,3])
-        coordinate[:,1] = cross(coordinate[:,2], coordinate[:,3])
-        degree = min(degree, 20)
-        if symtype == "Cs"
-            degree = -1
+    else
+        if (proposal.class == "C")
+            axis, reflectPose, translate, degree, symtype = refineAxis_C(points, coordinate[:,2], proposal.degree, coordinate[:,1], log)
+        elseif (proposal.class == "D")
+            axis, reflectPose, translate, degree, symtype = refineAxis_D(points, coordinate[:,2], proposal.degree, coordinate[:,1], log)
         end
-    elseif (proposal.class == "D")
-        axis, reflectPose, translate, degree, symtype = refineAxis_D(points, coordinate[:,2], proposal.degree, coordinate[:,3], log)
         coordinate[:,2] = axis / norm(axis)
-        coordinate[:,3] = reflectPose
-        coordinate[:,3] = coordinate[:,3] - dot(coordinate[:,3],coordinate[:,2]) .* coordinate[:,2]
-        coordinate[:,3] = coordinate[:,3] / norm(coordinate[:,3])
-        coordinate[:,1] = cross(coordinate[:,2], coordinate[:,3])
+        coordinate[:,1] = reflectPose
+        coordinate[:,1] = coordinate[:,1] - dot(coordinate[:,1],coordinate[:,2]) .* coordinate[:,2]
+        coordinate[:,1] = coordinate[:,1] / norm(coordinate[:,1])
+        coordinate[:,3] = cross(coordinate[:,1], coordinate[:,2])
         degree = min(degree, 20)
         if symtype == "Cs"
             degree = -1
