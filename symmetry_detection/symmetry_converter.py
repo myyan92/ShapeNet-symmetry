@@ -129,7 +129,9 @@ def convertOGroup(center, matrix, output):
 
 def main(synset):
     # files = glob.glob(os.path.join('./Results/', synset, '*.sym3'))
-    files = glob.glob(os.path.join('/orions3-zfs/projects/anastasiad/ShapeNetSymm/Results/', synset, '38bdba5f6455c5ff91663a74ccd2338*.sym'))
+    # files = glob.glob(os.path.join('/orions3-zfs/projects/anastasiad/ShapeNetSymm/Results/', synset, '38bdba5f6455c5ff91663a74ccd2338*.sym'))
+    # files = glob.glob(os.path.join('/afs/cs.stanford.edu/u/anastasiad/Lingxiao/samplefilesforsymmetrydetection/Results/*.sym'))
+    files = glob.glob(os.path.join('/afs/cs.stanford.edu/u/anastasiad/Lingxiao/repptforsiemensfridaymeeting/Results/*.sym'))
     for f in files:
         print(f)
         output = f.replace('.sym', '.generators')

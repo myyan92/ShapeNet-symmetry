@@ -55,7 +55,7 @@ function loadMesh_v2(filename)
 end
 
 
-function saveSymmetry(filename, symType, translate, coordinate)
+function saveSymmetry(filename, symType, translate, coordinate,center)
     fout = open(filename, "w")
     @printf(fout, "%s\n", symType)
     @printf(fout, "%f %f %f\n", translate[:]...)

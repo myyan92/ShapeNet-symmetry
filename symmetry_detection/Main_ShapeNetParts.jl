@@ -14,7 +14,7 @@ const path2obj = "/orions4-zfs/projects/jyau/SymmDetProject/testing/Minhyuk-styl
 const path2results = "/orions3-zfs/projects/anastasiad/ShapeNetSymm/Results/03001627/"
 
 @everywhere function main(modelname)
-	for partnum = 0:1000
+	for partnum = 4 #0:1000
 	    filename = "/orions4-zfs/projects/jyau/SymmDetProject/testing/Minhyuk-style-OBJ/" * modelname * "/" * "$partnum.obj"
 	    if (!isfile(filename))
 	        break
@@ -28,7 +28,7 @@ const path2results = "/orions3-zfs/projects/anastasiad/ShapeNetSymm/Results/0300
 	    logname = "/orions3-zfs/projects/anastasiad/ShapeNetSymm/Results/03001627/" * modelname * "_$partnum.log"
 	    #println(logname)
 	    fout = open(logname, "w")
-	    symType, canonical, translate = detectSelfSymmetry(newMesh, fout)
+	    symType, canonical, translate, center = detectSelfSymmetry(newMesh, fout)
 	    if (symType == "None")
 	        println("symType is None, continue")
 	        continue
@@ -36,7 +36,7 @@ const path2results = "/orions3-zfs/projects/anastasiad/ShapeNetSymm/Results/0300
 	    close(fout)
 	    symname = "/orions3-zfs/projects/anastasiad/ShapeNetSymm/Results/03001627/" * modelname * "_$partnum.sym"
 	    #println(symname)
-	    saveSymmetry(symname, symType, translate, canonical)
+	    saveSymmetry(symname, symType, translate, canonical, center)
     end
 end
 
@@ -47,7 +47,7 @@ println(synsetID)
 models = readall("./all_model_lists/" * synsetID * ".txt")
 models = split(models, '\n')
 println(size(models,1))
-for model_id = 625:size(models,1)
+for model_id = 625 #:size(models,1)
         println(model_id)
 	main(models[model_id])
 end
