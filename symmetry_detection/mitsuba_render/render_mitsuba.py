@@ -46,8 +46,12 @@ def normalize(modelName, newModelName, diameter = 1.0, YZswapping = 0):
         if line.startswith("v "):
             fout.write("v %f %f %f\n" % (v[0, i], v[1, i], v[2, i]))
             i += 1
-        else:
-            fout.write(line.strip() + "\n")
+        elif line.startswith("f"):   # do not keep vn, vt, material, etc.
+            tokens = line.strip().split()
+            tokens = [t.split('/')[0] for t in tokens]
+            fout.write(' '.join(tokens) + "\n")
+            tokens = [tokens[0]]+tokens[-1:0:-1]
+            fout.write(' '.join(tokens) + "\n")
     fout.close()
     return
 
@@ -165,7 +169,9 @@ def render_model(model_name, synset):
             for d in xrange(degree):
                 sensor_trans = [ mitsuba.core.Transform.lookAt(mitsuba.core.Point(7,0,0),mitsuba.core.Point(0,0,0),mitsuba.core.Vector(0,1,0)),
                                  mitsuba.core.Transform.lookAt(mitsuba.core.Point(0,7,0),mitsuba.core.Point(0,0,0),mitsuba.core.Vector(0,0,1)) ]
-                rotation_trans =mitsuba.core.Transform.rotate(mitsuba.core.Vector(0,1,0), float(180)*d/degree)
+                rotation_trans = mitsuba.core.Transform.rotate(mitsuba.core.Vector(0,1,0), float(180)*d/degree)
+                if sym_type[-1]=='d':
+                    rotation_trans = rotation_trans*mitsuba.core.Transform.rotate(mitsuba.core.Vector(0,1,0), float(180)/degree/2.0)
                 shape_trans = [ rotation_trans,  mitsuba.core.Transform.rotate(mitsuba.core.Vector(1,0,0), float(180))*rotation_trans]
                 for vi,sensor_t in enumerate(sensor_trans):
                     for vj,shape_t in enumerate(shape_trans):
@@ -197,11 +203,11 @@ filelist = '../deduplicate_lists/'+synset+'.txt'
 with open(filelist) as f:
     models = f.readlines()
 models = [md5.strip() for md5 in models]
-for i in [0]: #range(len(models)):
-#    md5 = models[i]
-    md5="5334cfe15f80099f15ac67104577aee7"
-    model_name = os.path.join('/orions3-zfs/projects/haosu/ShapeNetCore2015Spring/ShapeNetCore.v1', synset, 
-                             md5)
+for i in range(len(models)):
+    md5 = models[i]
+    # md5="5334cfe15f80099f15ac67104577aee7"
+    model_name = os.path.join('/orions3-zfs/projects/haosu/ShapeNetCore2015Spring/ShapeNetCore.v1',
+                              synset, md5)
     try:
         render_model(model_name, synset)
     except:

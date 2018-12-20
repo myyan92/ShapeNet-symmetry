@@ -1,5 +1,8 @@
+push!(LOAD_PATH, pwd())
+
 using IOUtil
 using RefineAxisLib
+using SamplePointsUtil
 
 function generateAxis(symType, translate, coordinate)
     if symType=="E" 
@@ -167,8 +170,19 @@ for idx = 1:size(models,1)-1
     if !isempty(proposals)
         Mesh = loadMesh(synsetID, md5);
         Mesh.vertices = Mesh.vertices .- translate'
-        densityProposal = GetSampleDensityProposal(Mesh, 8000);
-        PC = SamplePoints(Mesh, densityProposal);
+
+        face = Mesh.faces;
+        totalarea = 0
+        for f in face
+            pt1 = vec(Mesh.vertices[f[1],:])
+            pt2 = vec(Mesh.vertices[f[2],:])
+            pt3 = vec(Mesh.vertices[f[3],:])
+            area = norm(cross(pt1-pt2,pt2-pt3))/2
+            totalarea = totalarea + area
+        end
+
+        num_points = min(round(Int, 10000/9.0*totalarea), 25000)
+        PC = SamplePoints(Mesh.vertices, Mesh.faces, num_points) # average distance 0.03
         logfile = open("Results/"*synsetID*"/"*md5*".log_g", "w");
 
         for i = 1:3  # refine and merge multiple times to be accurate
@@ -194,7 +208,7 @@ for idx = 1:size(models,1)-1
     end
     for i = 1:size(proposals,1)
         symtype, degree, translate, coordinate = refineSym(proposals[i], proposals[i].coordinate, PC, logfile);
-        file = "Results/"*synsetID*"/"*md5*".sym3t_g$(i)"
+        file = "Results/"*synsetID*"/"*md5*".sym3_g$(i)"
         saveSymmetry(file, symtype, translate, coordinate)
     end         
 
