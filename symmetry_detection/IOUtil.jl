@@ -49,19 +49,32 @@ function loadMesh_v2(filename)
     mcenter = mcenter / totalarea;
     newMesh.vertices = newMesh.vertices .- mcenter';
     diag = maximum(sum(newMesh.vertices.^2, 2), 1);
-    newMesh.vertices = newMesh.vertices ./ sqrt(diag);
+    radius = sqrt(diag);
+    newMesh.vertices = newMesh.vertices ./ radius;
 
-    return newMesh
+    return newMesh, mcenter, radius
 end
 
 
-function saveSymmetry(filename, symType, translate, coordinate,center)
+# function saveSymmetry(filename, symType, translate, coordinate)
+#     fout = open(filename, "w")
+#     @printf(fout, "%s\n", symType)
+#     @printf(fout, "%f %f %f\n", translate[:]...)
+#     @printf(fout, "%f %f %f\n", coordinate[1,:]...)
+#     @printf(fout, "%f %f %f\n", coordinate[2,:]...)
+#     @printf(fout, "%f %f %f\n", coordinate[3,:]...)
+#     close(fout)
+# end
+
+function saveSymmetry(filename, symType, translate, coordinate, mcenter, radius)
     fout = open(filename, "w")
     @printf(fout, "%s\n", symType)
     @printf(fout, "%f %f %f\n", translate[:]...)
     @printf(fout, "%f %f %f\n", coordinate[1,:]...)
     @printf(fout, "%f %f %f\n", coordinate[2,:]...)
     @printf(fout, "%f %f %f\n", coordinate[3,:]...)
+    @printf(fout, "%f\n", radius...)
+    @printf(fout, "%f %f %f\n", mcenter[:]...)
     close(fout)
 end
 

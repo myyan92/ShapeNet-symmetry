@@ -116,26 +116,15 @@ function detectSelfSymmetry(Mesh, log)
 
     #mesh PCA
     face = Mesh.faces;
-    center = zeros(3,1)
+    Cov = zeros(3,3)
     totalarea = 0
     for f in face
         pt1 = vec(Mesh.vertices[f[1],:])
         pt2 = vec(Mesh.vertices[f[2],:])
         pt3 = vec(Mesh.vertices[f[3],:])
         area = norm(cross(pt1-pt2,pt2-pt3))/2
-        center = (pt1 + pt2 + pt3)*area
-        totalarea = totalarea + area
-    end
-    center = center / totalarea
-
-    Cov = zeros(3,3)
-    for f in face
-        pt1 = vec(Mesh.vertices[f[1],:]) - center
-        pt2 = vec(Mesh.vertices[f[2],:]) - center
-        pt3 = vec(Mesh.vertices[f[3],:]) - center
-        area = norm(cross(pt1-pt2,pt2-pt3))/2
         Cov = Cov + (pt1*pt1' + pt2*pt2' + pt3*pt3' + 0.5*(pt1*pt2' + pt1*pt3' + pt2*pt1' + pt2*pt3' + pt3*pt1' + pt3*pt2')) * area / 6
-        center = (pt1 + pt2 + pt3)*area
+        totalarea = totalarea + area
     end
     Cov = Cov / totalarea
     eigenval, eigenvec = eig(Cov)
@@ -152,8 +141,11 @@ function detectSelfSymmetry(Mesh, log)
     #fixed point and PCA
     num_points = min(round(Int, 10000/9.0*totalarea), 25000)
     if (num_points == 0)
-        # symType, canonical_dir, translate, center
-        return "None", 0, 0, 0
+        # symType = "None"
+        # canonical_dir = 0
+        # translate = 0
+        # symType, canonical_dir, translate
+        return "None", 0, 0
     end
     if num_points == 25000
         @printf(log, "large area, cap number of points to 25000.")
@@ -347,7 +339,7 @@ function detectSelfSymmetry(Mesh, log)
             end                
         end
     end
-    symType, canonical_dir, translate, center
+    symType, canonical_dir, translate
 end
 
 end # module end
