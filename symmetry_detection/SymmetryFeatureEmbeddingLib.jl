@@ -123,7 +123,8 @@ function detectSelfSymmetry(Mesh, log)
         pt2 = vec(Mesh.vertices[f[2],:])
         pt3 = vec(Mesh.vertices[f[3],:])
         area = norm(cross(pt1-pt2,pt2-pt3))/2
-        Cov = Cov + (pt1*pt1' + pt2*pt2' + pt3*pt3' + 0.5*(pt1*pt2' + pt1*pt3' + pt2*pt1' + pt2*pt3' + pt3*pt1' + pt3*pt2')) * area / 6
+        # Cov = Cov + (pt1*pt1' + pt2*pt2' + pt3*pt3' + 0.5*(pt1*pt2' + pt1*pt3' + pt2*pt1' + pt2*pt3' + pt3*pt1' + pt3*pt2')) * area / 6
+        Cov = Cov + (pt1*pt1' + pt2*pt2' + pt3*pt3' + 0.5*(pt1*pt2' + pt1*pt3' + pt2*pt3' + (pt1*pt2' + pt1*pt3' + pt2*pt3')')) * area / 6
         totalarea = totalarea + area
     end
     Cov = Cov / totalarea
