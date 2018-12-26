@@ -44,7 +44,6 @@ function createSelectCategoryUI(parentElem, categories, keyCodeMap, disabled) {
 // param input {id: string, image1: string, image2: string, expected: string}
 // param submitHookup {setupSubmit: function(), setOutput: function(output)}
 // param useKeyshortcuts {boolean}
-//
 function SymmetryTask(categories, input, submitHookup, useKeyshortcuts) {
   this.input = input;
   // Annotations (parallel to input)
@@ -69,8 +68,8 @@ function SymmetryTask(categories, input, submitHookup, useKeyshortcuts) {
   this.numEntriesElem = $('#numEntries');
   this.imageContainer = $('#image-container');
   this.mainCategorySelectElem = $('#choices');
-  this.counterTopElem = $('.counter-top');
-  this.counterBottomElem = $('.counter-bottom');
+  this.counterTopElem = $('#counter .counter-top');
+  this.counterBottomElem = $('#counter .counter-bottom');
   this.prevButton = $('#prev-btn');
   this.nextButton = $('#next-btn');
   this.submitButton = $('#submit-btn');
@@ -176,6 +175,20 @@ SymmetryTask.prototype.getOutput = function() {
   return output;
 };
 
+SymmetryTask.prototype.setOutput = function(output) {
+  if (output.length !== this.input.length) {
+    throw "Output does not match input";
+  }
+  var annotations = [];
+  for (var i = 0; i < output.length; i++) {
+    if (this.input[i].id !== output[i].id) {
+      throw "Output id does not match input id for element " + i; 
+    }
+    annotations[i] = output[i].annotation;
+  }
+  this.annotations = annotations;
+}
+
 SymmetryTask.prototype.hookupKeys = function() {
   if (this.useKeyshortcuts) {
     var that = this;
@@ -228,3 +241,24 @@ SymmetryTask.prototype.enable_hit = function() {
     that.submitHookup.setOutput(output);
   });
 }
+
+function SymmetryTaskTutorial(categories, input) {
+  // Tutorial for Symmetry Task
+  SymmetryTask.call(this, categories, input, this, false);
+  this.numEntriesElem = $('#tutorial-numEntries');
+  this.imageContainer = $('#tutorial-image-container');
+  this.mainCategorySelectElem = $('#tutorial-choices');
+  this.counterTopElem = $('#tutorial-counter .counter-top');
+  this.counterBottomElem = $('#tutorial-counter .counter-bottom');
+  this.prevButton = $('#tutorial-prev-btn');
+  this.nextButton = $('#tutorial-next-btn');
+  this.submitButton = $('#tutorial-submit-btn');
+}
+
+SymmetryTaskTutorial.prototype.setupSubmit = function() {
+
+}
+
+
+SymmetryTaskTutorial.prototype = Object.create(SymmetryTask.prototype);
+SymmetryTaskTutorial.prototype.constructor = SymmetryTaskTutorial;
