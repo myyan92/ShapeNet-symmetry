@@ -42,41 +42,42 @@
              </h4>
             </div>
             <div class="panel-body" id="instructionHeader">
-              <p>We are trying to understand how people perceive object symmetries.  We have developed a computer program to identify potential symmetries in a object.  Your task to help guide our program by 
-              You will be given <span id="numEntries"></span> pairs of images.  Place you mouse on top and out of the image box to see the different image.  
-              Please indicate if you think the two images are identical ("None"), or if you can detect the two images as being different ("Clearly different").  Select "Tiny" if there is tiny difference that is hard to see but you detect a change, "Slight" if you see a difference but you don't think it is semantically important. Select "N/A" if for something you can't see any images.
+              <p>We are trying to understand how people perceive object symmetries.  We have developed a computer program to identify potential symmetries in a object.  Your task to help guide our program by indicating to the program when images of the object are the same (indicating a correct symmetry) or different.</p>
+
+              <p>You will be given <span id="numEntries"></span> pairs of images.  Place you mouse on top and out of the image box to see the different image.  
+              Please indicate if you think the two images are identical ("None"), or if you can detect the two images as being different ("Clearly different").  Select "Slight" if you see a difference but you don't think it is semantically important, and "Some" if you see a small difference that can affect the way the object is used (examples are reflected letters and handles on the other side)
+               Select "N/A" if there is something wrong and you can't see any images.
               </p>
-              <p>Click <span style="color: #2e6da4;">"Next"</span> to go to the next item and <span style="color: #4cae4c;">"Submit"</span> when you are done.</p>
-<!--               <p>See the
+              <p>See the
                 <a class="collapsed" data-parent="#Categorization" data-toggle="collapse" href="#instructionBody" aria-expanded="false" aria-controls="instructionBody">
                   <strong>Selection Criteria</strong>
                   <span class="collapse-text">(Click to expand)</span>
                 </a> below for more details.
               </p>
- -->
-            </div>
+              <div class="panel-body panel-collapse collapse" id="instructionBody" aria-labelledby="collapseTrigger" >
+                <!-- Detailed instructions for the Worker-->
 
-            <div class="panel-body panel-collapse collapse" id="instructionBody" aria-labelledby="collapseTrigger" style="display: none;">
-              <!-- Detailed instructions for the Worker-->
+                <table class="table table-condensed table-striped table-responsive">
+                  <tbody>
+                  </tbody>
+                  <colgroup>
+                    <col class="col-xs-2 col-md-2" />
+                    <col class="col-xs-5 col-md-5" />
+                    <col class="col-xs-5 col-md-5" />
+                  </colgroup>
+                  <!-- By explaining what is or is not included in a category, the accuracy of the answers may increase. -->
+                  <tbody id="categoriesTable">
+                    <tr>
+                      <th>Category</th>
+                      <th>Description</th>
+                    </tr>
+                    <!-- Add instructions for each category below. Don't forget to rename the categories. -->
+                  </tbody>
+                </table>
+              </div>
+              <p>Click <span style="color: #2e6da4;">"Next"</span> to go to the next item and <span style="color: #4cae4c;">"Submit"</span> when you are done.</p>
+             </div>
 
-              <table class="table table-condensed table-striped table-responsive">
-                <tbody>
-                </tbody>
-                <colgroup>
-                  <col class="col-xs-2 col-md-2" />
-                  <col class="col-xs-5 col-md-5" />
-                  <col class="col-xs-5 col-md-5" />
-                </colgroup>
-                <!-- By explaining what is or is not included in a category, the accuracy of the answers may increase. -->
-                <tbody id="categoriesTable">
-                  <tr>
-                    <th>Category</th>
-                    <th>Description</th>
-                  </tr>
-                  <!-- Add instructions for each category below. Don't forget to rename the categories. -->
-                </tbody>
-              </table>
-            </div>
 
           </div>
         </div>
@@ -125,9 +126,10 @@
 
         var categories = [
           { "label": "None", "value": "0", "description": "I can't detect any changes", "shortcut": '1'},
-          { "label": "Tiny", "value": "1", "description": "I think I detect some flickering when hovering over the image, but I can't really pinpoint what is different", "shortcut": '2'},
-          { "label": "Slight", "value": "2", "description": "There are slight differences, but I don't find the differences to be meaningful", "shortcut": '3'},
-          { "label": "Clearly different", "value": "3", "description": "The two images are clearly different", "shortcut": '4'},
+          // { "label": "Tiny", "value": "1", "description": "I think I detect some flickering when hovering over the image, but I can't really pinpoint what is different", "shortcut": '2'},
+          { "label": "Slight", "value": "2", "description": "There are slight differences, but I don't find the differences to be meaningful", "shortcut": '2'},
+          { "label": "Some", "value": "3", "description": "There are some small differences that can affect how the object will be used (examples are reflected letters, handles or steering wheel or tailpipe on different sides)", "shortcut": '3'},
+          { "label": "Clearly different", "value": "4", "description": "The two images are clearly different", "shortcut": '4'},
           { "label": "N/A", "value": "-1", "description": "Something is wrong and I can't see any images", "shortcut": 'X'},
         ];
 
@@ -138,21 +140,24 @@
          "02691156/f6b96f56212f55363023a5c0cae3fffe_s1_v1",
          "02691156/6826af6513566b12f4aab844bf68e35e_s1_v1",
          "02691156/61bd590e917928f6b6ecbbb2e4d05900_s3_v0",
-          "02801938/9b8db1890e6b74d430c7810cba6da248_s4_v1",
-          "02801938/7b407dedd933e3812f59b845f0db2ab3_s21_v1",
-          "02958343/42b0bc0fd8e292afbbecf72e56fe7e5d_s1_v0",
-          "02808440/7ec638ee1fa35cbc125fa9990176f0d5_s1_v1",
-          "02808440/9c72e9c273fa91701b5647ac5820a290_s11_v1",
-          "02933112/4f53f0d00d3491f35eea3e3d89293379_s2_v1",
-          "02843684/9c038a6c2564f3b0560e99aa033eed2e_s1_v1",
-          "02924116/a32145f859e16c791bf41075ed1aebfc_s1_v0",
-          "02747177/c6ef918f335bb21c5896bab37ddebe7_s2_v0",
-          "02876657/114509277e76e413c8724d5673a063a6_s17_v1",
-          "02876657/dd280525cf000bc3a608634464309a70_s20_v0",
-          "02828884/410c1c5ae4e9d49f5ebcc146be902492_s1_v1",
-          "02747177/e349b1d60823e089da15415f29346bc8_s2_v1",
-          "02808440/1257e60da04ab350b022c94235bc8601_s1_v0",
-          "02747177/64393896dc4403c0e88c1d6fc3580355_s15_v1",
+         "02801938/9b8db1890e6b74d430c7810cba6da248_s4_v1",
+         "02801938/7b407dedd933e3812f59b845f0db2ab3_s21_v1",
+         "02958343/42b0bc0fd8e292afbbecf72e56fe7e5d_s1_v0",
+         "02808440/7ec638ee1fa35cbc125fa9990176f0d5_s1_v1",
+         "02808440/9c72e9c273fa91701b5647ac5820a290_s11_v1",
+         "02933112/4f53f0d00d3491f35eea3e3d89293379_s2_v1",
+         "02843684/9c038a6c2564f3b0560e99aa033eed2e_s1_v1",
+         "02924116/a32145f859e16c791bf41075ed1aebfc_s1_v0",
+         "02747177/c6ef918f335bb21c5896bab37ddebe7_s2_v0",
+         "02876657/114509277e76e413c8724d5673a063a6_s17_v1",
+         "02876657/dd280525cf000bc3a608634464309a70_s20_v0",
+         "02828884/410c1c5ae4e9d49f5ebcc146be902492_s1_v1",
+         "02747177/e349b1d60823e089da15415f29346bc8_s2_v1",
+         "02808440/1257e60da04ab350b022c94235bc8601_s1_v0",
+         "02747177/64393896dc4403c0e88c1d6fc3580355_s15_v1",
+         "02828884/36d1f0331d7f4ad2cf695c8970a97c29_s1_v0",
+         "02828884/3c40692f71e9b773c2c0fe12f0bcb343_s3_v0",
+         "02992529/854ab60bd57d3d6d2f412e1bfcc51526_s2_v0",
         ]; 
         var DEFAULT_INPUT = ids.map(function(id) {
           return toItem(id);
@@ -168,6 +173,17 @@
           return toItem(item.id, item.expected);
         });
 
+        function populateCategoryTable() {
+          var categoriesTable = $('#categoriesTable');
+          for (var i = 0; i < categories.length; i++) {
+            var category = categories[i];
+            var row = $('<tr></tr>');
+            row.append($('<td></td>').text(category.label));
+            row.append($('<td></td>').text(category.description));
+            categoriesTable.append(row);
+          }
+        }
+
         function main() {
           // If this is a HIT on AMT, then replace the default input with the real input.
           var input = simpleamt.getInput(DEFAULT_INPUT);
@@ -181,6 +197,9 @@
 
           var symmetry_task = new SymmetryTask(categories, input, simpleamt, true);
           symmetry_task.init(simpleamt.isPreview());
+          populateCategoryTable();
+
+          var symmetry_task_tutorial = new SymmetryTaskTutorial(categories, input);
         }
 
         main();
