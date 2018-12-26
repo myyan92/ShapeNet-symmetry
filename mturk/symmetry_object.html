@@ -42,9 +42,9 @@
              </h4>
             </div>
             <div class="panel-body" id="instructionHeader">
-              <p>We are trying to understand how people perceive object symmetries.  
+              <p>We are trying to understand how people perceive object symmetries.  We have developed a computer program to identify potential symmetries in a object.  Your task to help guide our program by 
               You will be given <span id="numEntries"></span> pairs of images.  Place you mouse on top and out of the image box to see the different image.  
-              Please indicate if you think the two images are identical ("None"), or if you can detect the two images as being diffrent ("Clearly different").  Select "Tiny" if there is tiny difference that is hard to see but you detect a change, "Slight" if you see a difference but you don't think it is semantically important. Select "N/A" if for something you can't see any images.
+              Please indicate if you think the two images are identical ("None"), or if you can detect the two images as being different ("Clearly different").  Select "Tiny" if there is tiny difference that is hard to see but you detect a change, "Slight" if you see a difference but you don't think it is semantically important. Select "N/A" if for something you can't see any images.
               </p>
               <p>Click <span style="color: #2e6da4;">"Next"</span> to go to the next item and <span style="color: #4cae4c;">"Submit"</span> when you are done.</p>
 <!--               <p>See the
@@ -71,7 +71,7 @@
                 <tbody id="categoriesTable">
                   <tr>
                     <th>Category</th>
-                    <th>Expresses</th>
+                    <th>Description</th>
                   </tr>
                   <!-- Add instructions for each category below. Don't forget to rename the categories. -->
                 </tbody>
@@ -110,12 +110,16 @@
     {% include "hit_templates/simpleamt.html" %}
 
     <script>
+      {% include "examples/symmetry/symmetry_task.js" %}
       $(function() {
-        function toItem(id) {
+        // Helper functions for setting up the data
+        var baseImageUrl = "http://shapenet.cs.stanford.edu/shapenet/screenshots/models/symmetry_detection/";
+        function toItem(id, expected) {
           return {
             id: id,
             image1: baseImageUrl + id + ".0.tmp.png",
             image2: baseImageUrl + id + ".1.tmp.png",
+            expected: expected
           };
         }
 
@@ -126,75 +130,47 @@
           { "label": "Clearly different", "value": "3", "description": "The two images are clearly different", "shortcut": '4'},
           { "label": "N/A", "value": "-1", "description": "Something is wrong and I can't see any images", "shortcut": 'X'},
         ];
-        var valid_values = categories.map(function(x) { return x.value; });
 
         // Define some default input.
-        var baseImageUrl = "http://shapenet.cs.stanford.edu/shapenet/screenshots/models/symmetry_detection/";
         var ids = [
-          "02691156/79351c8f83f5a3abb2d09bc8d348e46b_s1_v0",
-          "02691156/783f3f72d5639597ba0d990ae229b477_s1_v1",
-          "02691156/f6b96f56212f55363023a5c0cae3fffe_s1_v1",
-          "02691156/6826af6513566b12f4aab844bf68e35e_s1_v1",
-          "02691156/61bd590e917928f6b6ecbbb2e4d05900_s3_v0"
+         "02691156/79351c8f83f5a3abb2d09bc8d348e46b_s1_v0",
+         "02691156/783f3f72d5639597ba0d990ae229b477_s1_v1",
+         "02691156/f6b96f56212f55363023a5c0cae3fffe_s1_v1",
+         "02691156/6826af6513566b12f4aab844bf68e35e_s1_v1",
+         "02691156/61bd590e917928f6b6ecbbb2e4d05900_s3_v0",
+          "02801938/9b8db1890e6b74d430c7810cba6da248_s4_v1",
+          "02801938/7b407dedd933e3812f59b845f0db2ab3_s21_v1",
+          "02958343/42b0bc0fd8e292afbbecf72e56fe7e5d_s1_v0",
+          "02808440/7ec638ee1fa35cbc125fa9990176f0d5_s1_v1",
+          "02808440/9c72e9c273fa91701b5647ac5820a290_s11_v1",
+          "02933112/4f53f0d00d3491f35eea3e3d89293379_s2_v1",
+          "02843684/9c038a6c2564f3b0560e99aa033eed2e_s1_v1",
+          "02924116/a32145f859e16c791bf41075ed1aebfc_s1_v0",
+          "02747177/c6ef918f335bb21c5896bab37ddebe7_s2_v0",
+          "02876657/114509277e76e413c8724d5673a063a6_s17_v1",
+          "02876657/dd280525cf000bc3a608634464309a70_s20_v0",
+          "02828884/410c1c5ae4e9d49f5ebcc146be902492_s1_v1",
+          "02747177/e349b1d60823e089da15415f29346bc8_s2_v1",
+          "02808440/1257e60da04ab350b022c94235bc8601_s1_v0",
+          "02747177/64393896dc4403c0e88c1d6fc3580355_s15_v1",
         ]; 
         var DEFAULT_INPUT = ids.map(function(id) {
           return toItem(id);
         });
-
-        var input = null;
-        var useKeyshortcuts = true;
-        var keyCodeMap = {};
-
-        // Annotations (parallel to input)
-        var annotationElems = [];
-        var annotations = [];
-
-        // Some variables to track state of the HIT.
-        var idx = 0;
-        var enabled = false;
-
-        function swap_image_source() {
-            var newSource = $(this).data('alt-src');
-            $(this).data('alt-src', $(this).attr('src'));
-            $(this).attr('src', newSource);
-        }
-
-        function createUI() {
-          // Populate instructions
-          var numEntriesElem = $('#numEntries');
-          numEntriesElem.text(input.length);
-          // Populate choices
-          var choices = $('#choices');
-          for (var i = 0; i < categories.length; i++) {
-            var category = categories[i];
-            var inputElem = $("<input/>").attr("type", "radio").attr("name", category.label)
-                      .attr("value", category.value).prop("hidden", true).prop("disabled", true);
-            var shortcut = (category.shortcut != null)? ' (' + category.shortcut + ')': '';
-            var labelElem = $("<label></label>").attr("class", "btn btn-default")
-                  .text(category.label + shortcut) 
-                  .attr("title", category.description).append(inputElem);
-            var categoryButton = $("<div></div>").attr("class", "radio-inline").append(labelElem).prop("disabled", true);
-            choices.append(categoryButton);
-            annotationElems.push({ radio: inputElem, button: categoryButton });
-            if (category.shortcut != null) {
-              keyCodeMap[category.shortcut.toUpperCase().charCodeAt(0)] = i;
-            }
-          }
-        }
-
-        function preloadImages(images) {
-          // Preload all images
-          var imgs = [];
-          _.each(images, function(img_url) {
-            var img = new Image();
-            img.onload = function() { console.log('loaded image from ' + img_url); };
-            img.src = img_url;
-          });
-        }
+        var tutorial_items = [
+          { "id": "02801938/9b8db1890e6b74d430c7810cba6da248_s4_v1", "expected": "2"},
+          { "id": "02801938/7b407dedd933e3812f59b845f0db2ab3_s21_v1", "expected": "1"},
+          { "id": "02958343/42b0bc0fd8e292afbbecf72e56fe7e5d_s1_v0", "expected": "2"},
+          { "id": "02808440/7ec638ee1fa35cbc125fa9990176f0d5_s1_v1", "expected": "0"},
+          { "id": "02801938/9b8db1890e6b74d430c7810cba6da248_s4_v1", "expected": "2"}
+        ];
+        tutorial_items = tutorial_items.map(function(item) {
+          return toItem(item.id, item.expected);
+        });
 
         function main() {
           // If this is a HIT on AMT, then replace the default input with the real input.
-          input = simpleamt.getInput(DEFAULT_INPUT);
+          var input = simpleamt.getInput(DEFAULT_INPUT);
           input = input.map(function(item) {
             if (typeof item === 'string') {
               return toItem(item);
@@ -203,133 +179,8 @@
             }
           });
 
-          createUI();
-
-          // Enable the UI if the HIT is not in preview mode.
-          if (!simpleamt.isPreview()) {
-            enable_hit();
-          }
-
-          // Set up the annotations.
-          _.each(input, function() { annotations.push(null); });
-
-          preloadImages(input.map(function(x) { return x.image1; }));
-          preloadImages(input.map(function(x) { return x.image2; }));
-
-          render();
-        }
-
-        function showAnnotation(value) {
-          $('#choices').find('label').removeClass('active');
-          $('#choices').find('label input').prop('checked', false);
-          if (value) {
-            var inputElem = $('#choices').find('label input[value=' + value + ']');
-            inputElem.prop('checked', true);
-            inputElem.parent().addClass('active');
-          }
-        }
-
-        // Use the current index to update the image and description
-        function render() {
-          // Set up the image
-          $('#image-container').empty();
-          $('<img>').attr('src', input[idx].image1)
-            .data('alt-src', input[idx].image2)
-            .addClass('withHover')
-            .addClass('bordered')
-            .appendTo($('#image-container'));
-          $('img.withHover').hover(swap_image_source, swap_image_source);
-
-          showAnnotation(annotations[idx]);
-
-          // Refresh the counter
-          $('.counter-top').text(idx + 1);
-          $('.counter-bottom').text(input.length);
-
-          // If the UI is enabled, enable or disable the buttons depending on
-          // the index.
-          if (enabled) {
-            var prev_btn = $('#prev-btn');
-            var next_btn = $('#next-btn');
-            prev_btn.prop('disabled', true);
-            next_btn.prop('disabled', true);
-            if (idx > 0) {
-              prev_btn.prop('disabled', false);
-            }
-            if (idx < input.length - 1) next_btn.prop('disabled', false);
-          }
-        }
-
-        // Save current annotation
-        function save_current() {
-          annotations[idx] = $('#choices input:radio:checked').val();
-          // console.log('save', annotations[idx], idx);
-        }
-
-        // Update the index, and save the text in the text area.
-        function set_idx(new_idx) {
-          if (new_idx < 0 || new_idx >= input.length) return;
-          save_current();
-
-          idx = new_idx;
-          render();
-        }
-
-        function hookupKeys() {
-          if (useKeyshortcuts) {
-            window.addEventListener("keyup", function (event) {
-              var tagName = (event.target || event.srcElement).tagName;
-              var isInputText = (tagName === 'INPUT' || tagName === 'SELECT' || tagName === 'TEXTAREA');
-              if (!isInputText) {
-                if (event.keyCode === 37 /* left arrow */) {
-                  $('#prev-btn').click();
-                } else if (event.keyCode == 39 /* right arrow */) {
-                  $('#next-btn').click();
-                }
-                var index = keyCodeMap[event.keyCode];
-                if (index != null) {
-                  annotationElems[index].radio.click();
-                  annotationElems[index].button.click();
-                  return false;
-                }
-              }
-            });
-          }
-        }
-
-        // Enable the UI.
-        function enable_hit() {
-          enabled = true;
-
-          // Enable components
-          $('#next-btn').click(function() { set_idx(idx + 1); });
-          $('#prev-btn').click(function() { set_idx(idx - 1); });
-          $('#submit-btn').prop('disabled', false);
-          for (var i = 0; i < annotationElems.length; i++) {
-            var inputElem = annotationElems[i];
-            inputElem.radio.prop('disabled', false);
-            inputElem.button.prop('disabled', false);
-            inputElem.button.click(function(event) {
-              $('#choices').find('label').removeClass('active');
-              $(this).find('label').addClass('active');
-            });
-          }
-          hookupKeys();
-
-          // Set up submit handler.
-          simpleamt.setupSubmit();
-          $('#submit-btn').click(function() {
-            save_current();
-            var invalidIndex = _.findIndex(annotations, function(d) { return d == null || valid_values.indexOf(d) < 0; });
-            if (invalidIndex >= 0) {
-              alert('Not all images annotated. Correct entry #' + (invalidIndex+1) + ' before submitting.');
-              return false;
-            }
-            var output = _.map(_.zip(input, annotations), function(x) {
-              return {'id': x[0].id, 'annotation': x[1]};
-            });
-            simpleamt.setOutput(output);
-          });
+          var symmetry_task = new SymmetryTask(categories, input, simpleamt, true);
+          symmetry_task.init(simpleamt.isPreview());
         }
 
         main();
