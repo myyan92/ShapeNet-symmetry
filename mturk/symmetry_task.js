@@ -27,7 +27,7 @@ function populateCategoryTable(categoriesTable, categories, items) {
     var row = $('<tr></tr>');
     row.append($('<td></td>').text(category.label));
     var details = $('<td></td');
-    details.append($('<span><span>').text(category.description));
+    details.append($('<span><span>').text(category.description + (category.details || '')));
     row.append(details);
     var rowItems = itemsByExpected[category.value];
     // console.log('items for ', category, rowItems);
@@ -44,18 +44,24 @@ function populateCategoryTable(categoriesTable, categories, items) {
   }
 }
 
-function selectTutorialItems(items, expected) {
-  var itemsByExpected = _.groupBy(items, function(x) { return x.expected; });
-  var tutorial_items = [];
-  for (var i = 0; i < expected.length; i++) {
-    var items = itemsByExpected[expected[i]];
-    if (items && items.length) {
-      var si = Math.floor(Math.random()*items.length);
-      tutorial_items.push(items[si]);
-      items.splice(si, 1);
+function getCookie(cname) {
+  var name = cname + "=";
+  var decodedCookie = decodeURIComponent(document.cookie);
+  var ca = decodedCookie.split(';');
+  for(var i = 0; i <ca.length; i++) {
+    var c = ca[i];
+    while (c.charAt(0) == ' ') {
+      c = c.substring(1);
+    }
+    if (c.indexOf(name) == 0) {
+      return c.substring(name.length, c.length);
     }
   }
-  return tutorial_items;
+  return "";  
+}
+
+function setCookie(cname, value) {
+  document.cookie = cname + '=' + encodeURIComponent(value);
 }
 
 
@@ -252,9 +258,13 @@ SymmetryTask.prototype.hookupKeys = function() {
       var isInputText = (tagName === 'INPUT' || tagName === 'SELECT' || tagName === 'TEXTAREA');
       if (!isInputText && that.enabled) {
         if (event.keyCode === 37 /* left arrow */) {
-          that.prevButton.click();
+          if (!that.prevButton.prop('disabled')) {
+            that.prevButton.click();
+          }
         } else if (event.keyCode == 39 /* right arrow */) {
-          that.nextButton.click();
+          if (!that.nextButton.prop('disabled')) {
+            that.nextButton.click();
+          }
         }
         var index = that.keyCodeMap[event.keyCode];
         if (index != null) {
@@ -310,10 +320,12 @@ SymmetryTask.prototype.enableHit = function() {
   });
 };
 
-function SymmetryTaskTutorial(categories, input) {
+function SymmetryTaskTutorial(categories, input, cookieName, mainTask) {
   // Tutorial for Symmetry Task
   var that = this;
-  SymmetryTask.call(this, categories, input, { setupSubmit: function() {}, setOutput: function(output) { that.setOutput(output); } }, false);
+  SymmetryTask.call(this, categories, input, { setupSubmit: function() {}, setOutput: function(output) { that.setOutput(output); } }, true);
+  this.mainTask = mainTask;
+  this.cookieName = cookieName;
   this.numEntriesElem = $('#tutorial-numEntries');
   this.imageContainer = $('#tutorial-image-container');
   this.mainCategorySelectElem = $('#tutorial-choices');
@@ -360,6 +372,7 @@ SymmetryTaskTutorial.prototype.updateSelected = function() {
     this.okay = true;
   }
   this.nextButton.prop('disabled', !this.okay);
+  this.save();
 };
 
 
@@ -372,6 +385,9 @@ SymmetryTaskTutorial.prototype.setIdx = function(new_idx) {
     this.mainElem.text("Thank you for doing this tutorial.  Please press 'Start' to continue with the main task");
     this.submitButton.show();
     this.tutorialModal.find('.close').show();
+    if (this.mainTask) {
+      this.mainTask.enabled = this.savedMainTaskEnabled;
+    }
   } else {
     SymmetryTask.prototype.setIdx.call(this, new_idx);
   }
@@ -389,5 +405,54 @@ SymmetryTaskTutorial.prototype.checkExpected = function(item, value) {
     return { error: error };
   }
 };
+
+SymmetryTaskTutorial.selectTutorialItems = function(items, expected) {
+  var itemsByExpected = _.groupBy(items, function(x) { return x.expected; });
+  var tutorial_items = [];
+  for (var i = 0; i < expected.length; i++) {
+    var items = itemsByExpected[expected[i]];
+    if (items && items.length) {
+      var si = Math.floor(Math.random()*items.length);
+      tutorial_items.push(items[si]);
+      items.splice(si, 1);
+    }
+  }
+  return tutorial_items;
+}
+
+SymmetryTaskTutorial.prototype.save = function() {
+  var string = this.toSerialized();
+  setCookie(this.cookieName, string);
+}
+
+SymmetryTaskTutorial.prototype.toSerialized = function() {
+  return JSON.stringify({ input: this.input.map(function(x) { return _.omit(x, ['image1', 'image2']); }), annotations: this.annotations });
+}
+
+SymmetryTaskTutorial.prototype.fromSerialized = function(savedTutorial, toItem) {
+  var json = JSON.parse(savedTutorial);
+  this.input = json.input.map(function(x) { return toItem(x.id, x); });
+  this.annotations = json.annotations;
+  return this;
+}
+
+SymmetryTaskTutorial.prototype.isComplete = function() {
+  for (var i = 0; i < this.input.length; i++) {
+    var result = this.checkExpected(this.input[i], this.annotations[i]);
+    if (result.error) {
+      return false;
+    }
+  }
+  return true;
+}
+
+SymmetryTaskTutorial.prototype.enableHit = function() {
+  SymmetryTask.prototype.enableHit.call(this);
+  if (this.mainTask) {
+    this.savedMainTaskEnabled = this.mainTask.enabled;
+    this.mainTask.enabled = false;
+  }
+}
+
 
 

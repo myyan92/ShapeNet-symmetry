@@ -48,7 +48,7 @@
               <p>We are trying to understand how people perceive object symmetries.  We have developed a computer program to identify potential symmetries in a object.  Your task to help guide our program by indicating to the program when images of the object are the same (indicating a correct symmetry) or different.</p>
 
               <p>You will be given <span id="numEntries"></span> pairs of images.  Place you mouse on top and out of the image box to see the different image.  
-              Please indicate if you think the two images are identical ("None"), or if you can detect the two images as being different ("Clearly different").  Select "Slight" if you see a difference but you don't think it is semantically important, and "Some" if you see a small difference that can affect the way the object is used (examples are reflected letters and handles on the other side)
+              Please indicate if you think the two images are identical ("None"), or if the two images are clearly different ("Clearly different").  Select "Slight" if you see a difference but you don't think it is semantically important, and "Some" if you see a small difference that can affect the way the object is used (examples are reflected letters and handles on the other side)
                Select "N/A" if there is something wrong and you can't see any images.
               </p>
               <p>See the
@@ -59,7 +59,7 @@
               </p>
               <div class="panel-body panel-collapse collapse" id="instructionBody" aria-labelledby="collapseTrigger" >
                 <!-- Detailed instructions for the Worker-->
-
+                <p>Move your mouse cursor in and out of the image box to see the different images.</p>
                 <table class="table table-condensed table-striped table-responsive">
                   <tbody>
                   </tbody>
@@ -77,7 +77,7 @@
                   </tbody>
                 </table>
               </div>
-              <p>Click <span style="color: #2e6da4;">"Next"</span> to go to the next item and <span style="color: #4cae4c;">"Submit"</span> when you are done.</p>
+              <p>Click <span style="color: #2e6da4;">"Next"</span> (or use right arrow) to go to the next item and <span style="color: #4cae4c;">"Submit"</span> when you are done.</p>
              </div>
 
 
@@ -122,8 +122,9 @@
               <p>We are trying to understand how people perceive object symmetries.  We have developed a computer program to identify potential symmetries in a object.  Your task to help guide our program by indicating to the program when images of the object are the same (indicating a correct symmetry) or different.</p>
 
               <div id="tutorial-main">
-              <p>You will be given <span id="numEntries"></span> pairs of images.  Place you mouse on top and out of the image box to see the different image.  
-              Please indicate if you think the two images are identical ("None"), or if you can detect the two images as being different ("Clearly different").  Select "Slight" if you see a difference but you don't think it is semantically important, and "Some" if you see a small difference that can affect the way the object is used (examples are reflected letters and handles on the other side)
+              <p>You will be given <span id="numEntries"></span> pairs of images.  Place you mouse on top and out of the image box to see the different image.</p>
+
+              <p>Please indicate if you think the two images are identical ("None"), or if the two images as are clearly different ("Clearly different").  Select "Slight" if you see a difference but you don't think it is semantically important, and "Some" if you see a small difference that can affect the way the object is used (examples are reflected letters and handles on the other side)
                Select "N/A" if there is something wrong and you can't see any images.
               </p>
 
@@ -172,14 +173,25 @@
         }
 
         var categories = [
-          { "label": "None", "value": "0", "description": "I can't detect any changes", "shortcut": '1',
+          { "label": "None", "value": "0", 
+            "description": "I can't detect any changes", "shortcut": '1',
             "tutorial_message": "There are no changes in the two images"},
-          { "label": "Tiny", "value": "1", "description": "I think I detect some flickering when hovering over the image, but I can't really pinpoint what is different", "shortcut": '2', 
+          { "label": "Tiny", "value": "1", 
+            "description": "I think I detect some flickering when hovering over the image, but I can't really pinpoint what is different", 
+            "shortcut": '2', 
             "tutorial_message": "Sometimes, the differences are so slight to be almost unnoticeable"},
-          { "label": "Slight", "value": "2", "description": "There are slight differences, but I don't find the differences to be meaningful", "shortcut": '3', },
-          { "label": "Some", "value": "3", "description": "There are some small differences that can affect how the object will be used (examples are reflected letters, handles, buttons, steering wheel or tailpipe on different sides)", "shortcut": '4'},
-          { "label": "Clearly different", "value": "4", "description": "The two images are clearly different", "shortcut": '5'},
-          { "label": "N/A", "value": "-1", "description": "Something is wrong and I can't see any images", 
+          { "label": "Slight", "value": "2", 
+            "description": "There are slight differences, but I don't find the differences to be meaningful", 
+            "shortcut": '3', 
+            "tutorial_message": "There are some slight differences, but they don't change the way the object is used or placed"},
+          { "label": "Some", "value": "3", 
+            "description": "There are some small differences that can affect how the object will be used (examples are reflected letters, handles, buttons, steering wheel or tailpipe on different sides)", 
+            "shortcut": '4'},
+          { "label": "Clearly different", "value": "4", 
+            "description": "The two images are clearly different", "shortcut": '5'},
+          { "label": "N/A", "value": "-1", 
+            "description": "Something is wrong and I can't see any images", 
+            "details": "This case should not happen.  Select this only if there is a problem and no images are being displayed",
             "shortcut": 'X', "addRow": true},
         ];
 
@@ -262,8 +274,7 @@
         examples = examples.map(function(item) {
           return toItem(item.id, item);
         });
-        var tutorial_items = selectTutorialItems(examples, ["4", "0", "2", "3"]);
-
+        var useTutorial = true; 
         function main() {
           // If this is a HIT on AMT, then replace the default input with the real input.
           var input = simpleamt.getInput(DEFAULT_INPUT);
@@ -282,9 +293,20 @@
           symmetry_task.init(simpleamt.isPreview());
           populateCategoryTable($('#categoriesTable'), categories, examples);
 
-          var symmetry_task_tutorial = new SymmetryTaskTutorial(categories, tutorial_items);
-          symmetry_task_tutorial.init();
-          $('#tutorial-modal').modal('show')
+          // Tutorial code
+          if (useTutorial) {
+            var tutorial_name = 'tutorial_symmetry_v0_1';
+            var savedTutorialResponses = getCookie(tutorial_name);
+            var tutorial_items = SymmetryTaskTutorial.selectTutorialItems(examples, ["4", "0", "2", "3"]);
+            var symmetry_task_tutorial = new SymmetryTaskTutorial(categories, tutorial_items, tutorial_name, symmetry_task);
+            if (savedTutorialResponses) {
+              symmetry_task_tutorial.fromSerialized(savedTutorialResponses, toItem);
+            }
+            if (!symmetry_task_tutorial.isComplete()) {
+              symmetry_task_tutorial.init();
+              $('#tutorial-modal').modal('show');
+            }
+          }
         }
 
         main();
