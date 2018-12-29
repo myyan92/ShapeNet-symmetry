@@ -45,17 +45,18 @@
              </h4>
             </div>
             <div class="panel-body" id="instructionHeader">
-              <p>We are trying to understand how people perceive object symmetries.  We have developed a computer program to identify potential symmetries in a object.  Your task to help guide our program by indicating to the program when images of the object are the same (indicating a correct symmetry) or different.</p>
+              <p>We are trying to understand how people perceive object symmetries.  We have developed a computer program to identify potential symmetries in a object.  Your task to help guide our program by indicating to the program when images of the object are the same (indicating a correct symmetry) or different (indicating that there is no symmetry).</p>
 
-              <p>You will be given <span id="numEntries"></span> pairs of images.  Place you mouse on top and out of the image box to see the different image.  
-              Please indicate if you think the two images are identical ("None"), or if the two images are clearly different ("Clearly different").  Select "Slight" if you see a difference but you don't think it is semantically important, and "Some" if you see a small difference that can affect the way the object is used (examples are reflected letters and handles on the other side)
+              <p>You will be given <span id="numEntries"></span> pairs of images.  Place you mouse on top and out of the image box to see the different image.</p> 
+
+              <p>Please indicate if you think the two images are identical ("None"), or if the two images are clearly different ("Very different").  Select "Slight" if you see a difference but you don't think it is semantically important, and "Some" if you see a small difference that can affect the way the object is used (examples are reflected letters and handles/buttons on the other side)
                Select "N/A" if there is something wrong and you can't see any images.
               </p>
               <p>See the
                 <a class="collapsed" data-parent="#Categorization" data-toggle="collapse" href="#instructionBody" aria-expanded="false" aria-controls="instructionBody">
                   <strong>Selection Criteria</strong>
                   <span class="collapse-text">(Click to expand)</span>
-                </a> below for more details.
+                </a> below for more details and examples.
               </p>
               <div class="panel-body panel-collapse collapse" id="instructionBody" aria-labelledby="collapseTrigger" >
                 <!-- Detailed instructions for the Worker-->
@@ -77,7 +78,7 @@
                   </tbody>
                 </table>
               </div>
-              <p>Click <span style="color: #2e6da4;">"Next"</span> (or use right arrow) to go to the next item and <span style="color: #4cae4c;">"Submit"</span> when you are done.</p>
+              <p>Click <span style="color: #2e6da4;">"Next"</span> (or use right arrow) to go to the next item and <span style="color: #4cae4c;">"Submit"</span> when you are done.  The entire task should take approximately <span id="timeEstimate"></span> and you will be paid <span id="payment"></span>.</p>
              </div>
 
 
@@ -119,12 +120,12 @@
             <h4 class="modal-title">Tutorial</h4>
           </div>
           <div class="modal-body" id="tutorial-body">
-              <p>We are trying to understand how people perceive object symmetries.  We have developed a computer program to identify potential symmetries in a object.  Your task to help guide our program by indicating to the program when images of the object are the same (indicating a correct symmetry) or different.</p>
+              <p>We are trying to understand how people perceive object symmetries.  We have developed a computer program to identify potential symmetries in a object.  Your task to help guide our program by indicating to the program when images of the object are the same (indicating a correct symmetry) or different (indicating that there is no symmetry).</p>
 
               <div id="tutorial-main">
               <p>You will be given <span id="numEntries"></span> pairs of images.  Place you mouse on top and out of the image box to see the different image.</p>
 
-              <p>Please indicate if you think the two images are identical ("None"), or if the two images as are clearly different ("Clearly different").  Select "Slight" if you see a difference but you don't think it is semantically important, and "Some" if you see a small difference that can affect the way the object is used (examples are reflected letters and handles on the other side)
+              <p>Please indicate if you think the two images are identical ("None"), or if the two images as are clearly different ("Very different").  Select "Slight" if you see a difference but you don't think it is semantically important, and "Some" if you see a small difference that can affect the way the object is used (examples are reflected letters and handles/buttons on the other side)
                Select "N/A" if there is something wrong and you can't see any images.
               </p>
 
@@ -174,86 +175,73 @@
 
         var categories = [
           { "label": "None", "value": "0", 
-            "description": "I can't detect any changes", "shortcut": '1',
-            "tutorial_message": "There are no changes in the two images"},
+            "description": "I can't detect any changes.", 
+            "tutorial_message": "There are no changes in the two images.",
+            "shortcut": '1' },
 //          { "label": "Tiny", "value": "1", 
-//            "description": "I think I detect some flickering when hovering over the image, but I can't really pinpoint what is different", 
+//            "description": "I think I detect some flickering when hovering over the image, but I can't really pinpoint what is different.", 
 //            "shortcut": '2', 
 //            "tutorial_message": "Sometimes, the differences are so slight to be almost unnoticeable"},
           { "label": "Slight", "value": "2", 
-            "description": "There are slight differences, but I don't find the differences to be meaningful", 
-            "shortcut": '2', 
-            "tutorial_message": "There are some slight differences, but they don't change the way the object is used or placed"},
+            "description": "There are slight differences, but I don't find the differences to be meaningful.", 
+            "tutorial_message": "There are some slight differences, but they don't change the way the object is used or placed.",
+            "shortcut": '2' }, 
           { "label": "Some", "value": "3", 
-            "description": "There are some small differences that can affect how the object will be used (examples are reflected letters, handles, buttons, steering wheel or tailpipe on different sides)", 
-            "shortcut": '3'},
-          { "label": "Clearly different", "value": "4", 
-            "description": "The two images are clearly different", "shortcut": '4'},
+            "description": "There are some small differences that can affect how the object will be used (examples are reflected letters, handles, buttons, steering wheel or tailpipe on different sides).", 
+            "shortcut": '3' },
+          { "label": "Very different", "value": "4", 
+            "description": "The two images are clearly different.", 
+            "shortcut": '4'},
           { "label": "N/A", "value": "-1", 
-            "description": "Something is wrong and I can't see any images", 
-            "details": "This case should not happen.  Select this only if there is a problem and no images are being displayed",
+            "description": "Something is wrong and I can't see any images.", 
+            "details": "This case should not happen.  Select this only if there is a problem and no images are being displayed.",
             "shortcut": 'X', "addRow": true},
         ];
 
         // Define some default input.
         var ids = [
-         //  "02801938/f0c2ecb032e4230c50da8b99982a3057_s1_v1",
-         //  "02801938/ac36b5a7ebeaf8fc317c35ada68f2189_s16_v0",
-         //  "02801938/3e88bbe0b7f7ab5a36b0f2a1430e993a_s4_v1",
-         //  "02801938/bcc429595319716b726dbbf7bc5e4df3_s13_v0",
-         //  "02801938/35bc440973661b91259e0fe12d9ec13d_s15_v0",
-         //  "02801938/dc4a523b039e39bda843bb865a04c01a_s4_v1",
-         // "02691156/79351c8f83f5a3abb2d09bc8d348e46b_s1_v0",
-         // "02691156/783f3f72d5639597ba0d990ae229b477_s1_v1",
-         // "02691156/f6b96f56212f55363023a5c0cae3fffe_s1_v1",
-         // "02691156/6826af6513566b12f4aab844bf68e35e_s1_v1",
-         // "02691156/61bd590e917928f6b6ecbbb2e4d05900_s3_v0",
-         // "02801938/9b8db1890e6b74d430c7810cba6da248_s4_v1",
-         // "02801938/7b407dedd933e3812f59b845f0db2ab3_s21_v1",
-         // "02958343/42b0bc0fd8e292afbbecf72e56fe7e5d_s1_v0",
-         // "02808440/7ec638ee1fa35cbc125fa9990176f0d5_s1_v1",
-         // "02808440/9c72e9c273fa91701b5647ac5820a290_s11_v1",
-         // "02933112/4f53f0d00d3491f35eea3e3d89293379_s2_v1",
-         // "02843684/9c038a6c2564f3b0560e99aa033eed2e_s1_v1",
-         // "02924116/a32145f859e16c791bf41075ed1aebfc_s1_v0",
-         // "02747177/c6ef918f335bb21c5896bab37ddebe7_s2_v0",
-         // "02876657/114509277e76e413c8724d5673a063a6_s17_v1",
-         // "02876657/dd280525cf000bc3a608634464309a70_s20_v0",
-         // "02828884/410c1c5ae4e9d49f5ebcc146be902492_s1_v1",
-         // "02747177/e349b1d60823e089da15415f29346bc8_s2_v1",
-         // "02808440/1257e60da04ab350b022c94235bc8601_s1_v0",
-         // "02747177/64393896dc4403c0e88c1d6fc3580355_s15_v1",
-         // "02828884/36d1f0331d7f4ad2cf695c8970a97c29_s1_v0",
-         // "02828884/3c40692f71e9b773c2c0fe12f0bcb343_s3_v0",
-         // "02992529/854ab60bd57d3d6d2f412e1bfcc51526_s2_v0",
+         "02880940/5f2ef71aa9b94edbb84959963148f2a2_s17_v1",
+         "02924116/2dca337ba2d9d12a0fba45aa212129_s2_v0",
+         "02933112/b6ec38384c0904a666023b6076341c23_s3_v1",
+         "02691156/75e9e2d6970f5ee71927c29d6faf370a_s1_v0",
+         "02876657/b2507913d631e8b8bcfad79fc308fa6d_s20_v1",
+         "02880940/a593e8863200fdb0664b3b9b23ddfcbc_s16_v1",
+         "02828884/6953a491a4c74d42d5cec9a69bf229a3_s1_v0",
+         "02880940/6494761a8a0461777cba8364368aa1d_s7_v1",
+         "02946921/637006720b7886e0c7a50f701fe65efe_s4_v1",
+         "02954340/5eb9ab53213f5fff4e09ebaf49b0cb2f_s3_v0",
+         "02828884/9bb6f0077f91c613f155d75bbf62b80_s2_v0",
          "02747177/1532546ac3d8a2cff155d75bbf62b80_s2_v1",
          "02880940/446583d7bf857dced5cb6d178687b980_s4_v0",
          "02747177/cfb3a57ec847ebefc99e09be54ad23a9_s16_v0",
          "02992529/37846d5854ef7da646e4b9487666a2f7_s3_v1",
          "02876657/518f6867e5d38301fd3bf7a5792372cb_s16_v1",
          "02880940/b007af6eabaa290dd42b9650f19dd425_s11_v0",
-         "02858304/5b00c251f971aaa437a692cc86ebcb7c_s1_v0",
          "02747177/819795e285ea031625ebd1cd0b422e32_s18_v0",
-         "02933112/caa4f65053f07a64548804f91c2c5c3d_s2_v0",
          "02747177/18dbebd6527cffa254685f5f473de41f_s7_v0",
          "02828884/91e169ea3ceb587beff42b9e13c388bc_s7_v1",
-         "02992529/767205e25c8755fd89d59b774c6bc1b3_s2_v0",
          "02858304/1c4ea31563b54bc8b77192b0405b4a6d_s1_v0",
          "02691156/ed4aaf81dc577bedac4f72bf08dc79a6_s1_v1",
          "02942699/a9408583f2c4d6acad8a06dbee1d115_s12_v0",
-         "02933112/6db5a05080eb2480f863ead9331efd45_s2_v1",
+         "02958343/9d400df8825de9a62514ed2901e978de_s1_v1",
+         "02880940/2a1e9b5c0cead676b8183a4a81361b94_s7_v0",
+         "02747177/71f3b101a6d47811cb2a965e75be701c_s4_v1",
+         "02808440/397908e45ef98af8aa8891d8ac9b291_s42_v0",
+         "02828884/42be414abcd4f66113c01fa2f350f6d_s1_v0",
+         "02880940/e3e57a94be495771f54e1b6f41fdd78a_s11_v0",
+         "02828884/90a8b80aa2fa209ca936e2693dce34b6_s1_v0",
         ]; 
         var DEFAULT_INPUT = ids.map(function(id) {
           return toItem(id);
         });
         var examples = [
           { "id": "02958343/42b0bc0fd8e292afbbecf72e56fe7e5d_s1_v0", "expected": "3", 
-            "message": "The tailpipe is on different sides of the truck" },
+            "message": "The tailpipe is on different sides of the truck." },
           {  
             "id": "02924116/a32145f859e16c791bf41075ed1aebfc_s1_v0", "expected": "3",
-            "message": "The letter is reflected"
+            "message": "The letter is reflected."
           },
-          { "id": "02828884/8ed3f1b59a74ac71f155d75bbf62b80_s1_v0", "expected": "3" },  
+          { "id": "02992529/767205e25c8755fd89d59b774c6bc1b3_s2_v0", "expected": "3" },  
           { "id": "02808440/7ec638ee1fa35cbc125fa9990176f0d5_s1_v1", "expected": "0", 
             },
           { "id":  "02858304/5b00c251f971aaa437a692cc86ebcb7c_s1_v0", "expected": "0" },
@@ -291,6 +279,8 @@
 
           var symmetry_task = new SymmetryTask(categories, input, simpleamt, true);
           symmetry_task.init(simpleamt.isPreview());
+          $('#timeEstimate').text('3-5 minutes');
+          $('#payment').text('$1');
           populateCategoryTable($('#categoriesTable'), categories, examples);
 
           // Tutorial code

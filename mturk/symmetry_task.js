@@ -27,7 +27,7 @@ function populateCategoryTable(categoriesTable, categories, items) {
     var row = $('<tr></tr>');
     row.append($('<td></td>').text(category.label));
     var details = $('<td></td');
-    details.append($('<span><span>').text(category.description + (category.details || '')));
+    details.append($('<span><span>').text(category.description + ' ' + (category.details || '')));
     row.append(details);
     var rowItems = itemsByExpected[category.value];
     // console.log('items for ', category, rowItems);
