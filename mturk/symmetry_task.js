@@ -15,6 +15,50 @@ function preloadImages(images) {
   });
 }
 
+function preloadAllImages(items) {
+  preloadImages(items.map(function(x) { return x.image1; }));
+  preloadImages(items.map(function(x) { return x.image2; }));  
+}
+
+function populateCategoryTable(categoriesTable, categories, items) {
+  var itemsByExpected = _.groupBy(items, function(x) { return x.expected; });
+  for (var i = 0; i < categories.length; i++) {
+    var category = categories[i];
+    var row = $('<tr></tr>');
+    row.append($('<td></td>').text(category.label));
+    var details = $('<td></td');
+    details.append($('<span><span>').text(category.description));
+    row.append(details);
+    var rowItems = itemsByExpected[category.value];
+    // console.log('items for ', category, rowItems);
+    if (rowItems) {
+      details.append('<br/>');
+      for (var j = 0; j < rowItems.length; j++) {
+        var img = createItemImage(rowItems[j], details);
+        if (rowItems[j].message) {
+          img.attr('title', rowItems[j].message);
+        }
+      }
+    }
+    categoriesTable.append(row);
+  }
+}
+
+function selectTutorialItems(items, expected) {
+  var itemsByExpected = _.groupBy(items, function(x) { return x.expected; });
+  var tutorial_items = [];
+  for (var i = 0; i < expected.length; i++) {
+    var items = itemsByExpected[expected[i]];
+    if (items && items.length) {
+      var si = Math.floor(Math.random()*items.length);
+      tutorial_items.push(items[si]);
+      items.splice(si, 1);
+    }
+  }
+  return tutorial_items;
+}
+
+
 // Create UI for selecting category
 // Returns array of ui elements corresponding to each category
 function createSelectCategoryUI(parentElem, categories, keyCodeMap, disabled) {
@@ -29,6 +73,9 @@ function createSelectCategoryUI(parentElem, categories, keyCodeMap, disabled) {
           .text(category.label + shortcut) 
           .attr("title", category.description).append(inputElem);
     var categoryButton = $("<div></div>").attr("class", "radio-inline").append(labelElem).prop("disabled", disabled);
+    if (category.addRow) {
+      parentElem.append("<br/>");
+    }
     parentElem.append(categoryButton);
     uielems.push({ input: inputElem, button: categoryButton });
     if (keyCodeMap != null && category.shortcut != null) {
@@ -36,6 +83,16 @@ function createSelectCategoryUI(parentElem, categories, keyCodeMap, disabled) {
     }
   }
   return uielems;
+}
+
+function createItemImage(item, parent) {
+  var imgElem = $('<img>').attr('src', item.image1)
+    .data('alt-src', item.image2)
+    .addClass('withHover')
+    .addClass('bordered')
+    .appendTo(parent);
+  imgElem.hover(swap_image_source, swap_image_source);
+  return imgElem;  
 }
 
 //
@@ -83,10 +140,8 @@ SymmetryTask.prototype.init = function(isPreview) {
 
   // Enable the UI if the HIT is not in preview mode.
   if (!isPreview) {
-    this.enable_hit();
+    this.enableHit();
   }
-
-  this.preloadImages();
 
   // Set up the annotations.
   this.update();
@@ -102,22 +157,15 @@ SymmetryTask.prototype.showAnnotation = function(value) {
   }
 };
 
-SymmetryTask.prototype.renderItem = function(item, annotation) {
-  // Set up the image
-  this.imageContainer.empty();
-  var imgElem = $('<img>').attr('src', item.image1)
-    .data('alt-src', item.image2)
-    .addClass('withHover')
-    .addClass('bordered')
-    .appendTo(this.imageContainer);
-  imgElem.hover(swap_image_source, swap_image_source);
-  this.showAnnotation(annotation);
-};
-
 SymmetryTask.prototype.update = function() {
   // Set up the image
   var idx = this.idx;
-  this.renderItem(this.input[idx], this.annotations[idx])
+
+  // Set up the image
+  this.imageContainer.empty();
+  createItemImage(this.input[idx], this.imageContainer);
+  this.showAnnotation(this.annotations[idx]);
+  this.updateSelected();
 
   // Refresh the counter
   this.counterTopElem.text(idx + 1);
@@ -133,26 +181,33 @@ SymmetryTask.prototype.update = function() {
     if (idx > 0) {
       prev_btn.prop('disabled', false);
     }
-    if (idx < this.input.length - 1) {
+    if (this.allowNext()) {
       next_btn.prop('disabled', false);
     }
   }
 };
 
-SymmetryTask.prototype.preloadImages = function() {
-  preloadImages(this.input.map(function(x) { return x.image1; }));
-  preloadImages(this.input.map(function(x) { return x.image2; }));
+SymmetryTask.prototype.allowNext = function() {
+  return this.idx < this.input.length - 1;
 }
 
 // Save current annotation
-SymmetryTask.prototype.save_current = function() {
-  this.annotations[this.idx] = this.mainCategorySelectElem.find('input:radio:checked').val();
+SymmetryTask.prototype.saveCurrent = function() {
+  this.annotations[this.idx] = this.getSelected();
+};
+
+SymmetryTask.prototype.getSelected = function() {
+  return this.mainCategorySelectElem.find('input:radio:checked').val();
+};
+
+SymmetryTask.prototype.updateSelected = function(input) {
+  this.saveCurrent();
 };
 
 // Update the index, and save the text in the text area.
-SymmetryTask.prototype.set_idx = function(new_idx) {
+SymmetryTask.prototype.setIdx = function(new_idx) {
   if (new_idx < 0 || new_idx >= this.input.length) return;
-  this.save_current();
+  this.saveCurrent();
 
   this.idx = new_idx;
   this.update();
@@ -195,7 +250,7 @@ SymmetryTask.prototype.hookupKeys = function() {
     window.addEventListener("keyup", function (event) {
       var tagName = (event.target || event.srcElement).tagName;
       var isInputText = (tagName === 'INPUT' || tagName === 'SELECT' || tagName === 'TEXTAREA');
-      if (!isInputText) {
+      if (!isInputText && that.enabled) {
         if (event.keyCode === 37 /* left arrow */) {
           that.prevButton.click();
         } else if (event.keyCode == 39 /* right arrow */) {
@@ -212,13 +267,23 @@ SymmetryTask.prototype.hookupKeys = function() {
   }
 };
 
-SymmetryTask.prototype.enable_hit = function() {
+SymmetryTask.prototype.next = function() {
+  this.setIdx(this.idx + 1);
+};
+
+SymmetryTask.prototype.prev = function() {
+  this.setIdx(this.idx - 1);
+};
+
+SymmetryTask.prototype.enableHit = function() {
   this.enabled = true;
 
   // Enable components
   var that = this;
-  this.nextButton.click(function() { that.set_idx(that.idx + 1); });
-  this.prevButton.click(function() { that.set_idx(that.idx - 1); });
+  // this.nextButton.click(function() { that.setIdx(that.idx + 1); });
+  // this.prevButton.click(function() { that.setIdx(that.idx - 1); });
+  this.nextButton.click(function() { that.next(); });
+  this.prevButton.click(function() { that.prev(); });
   this.submitButton.prop('disabled', false);
   for (var i = 0; i < this.selectCategoryUIElems.length; i++) {
     var inputElem = this.selectCategoryUIElems[i];
@@ -226,7 +291,10 @@ SymmetryTask.prototype.enable_hit = function() {
     inputElem.button.prop('disabled', false);
     inputElem.button.click(function(event) {
       that.mainCategorySelectElem.find('label').removeClass('active');
+      that.mainCategorySelectElem.find('label input').prop('checked', false);
       $(this).find('label').addClass('active');
+      $(this).find('label input').prop('checked', true);
+      that.updateSelected();
     });
   }
   this.hookupKeys();
@@ -234,17 +302,18 @@ SymmetryTask.prototype.enable_hit = function() {
   // Set up submit handler.
   this.submitHookup.setupSubmit();
   this.submitButton.click(function() {
-    that.save_current();
+    that.saveCurrent();
     var annotationsOkay = that.checkAnnotations();
     if (!annotationsOkay) { return false; }
     var output = that.getOutput();
     that.submitHookup.setOutput(output);
   });
-}
+};
 
 function SymmetryTaskTutorial(categories, input) {
   // Tutorial for Symmetry Task
-  SymmetryTask.call(this, categories, input, this, false);
+  var that = this;
+  SymmetryTask.call(this, categories, input, { setupSubmit: function() {}, setOutput: function(output) { that.setOutput(output); } }, false);
   this.numEntriesElem = $('#tutorial-numEntries');
   this.imageContainer = $('#tutorial-image-container');
   this.mainCategorySelectElem = $('#tutorial-choices');
@@ -253,12 +322,72 @@ function SymmetryTaskTutorial(categories, input) {
   this.prevButton = $('#tutorial-prev-btn');
   this.nextButton = $('#tutorial-next-btn');
   this.submitButton = $('#tutorial-submit-btn');
+  this.alertElem = $('#tutorial-message');
+  this.mainElem = $('#tutorial-main');
+  this.tutorialModal = $('#tutorial-modal');
+  this.okay = false;
 }
-
-SymmetryTaskTutorial.prototype.setupSubmit = function() {
-
-}
-
 
 SymmetryTaskTutorial.prototype = Object.create(SymmetryTask.prototype);
 SymmetryTaskTutorial.prototype.constructor = SymmetryTaskTutorial;
+
+SymmetryTaskTutorial.prototype.showMessage = function(message, style, div) {
+  div = div || $('<div></div>');
+  div.attr('class', 'alert ' + style);
+  div.empty();
+  if (Array.isArray(message)) {
+    for (var i = 0; i < message.length; i++) {
+      if (i > 0) {
+        div.append('<br/>');
+      }
+      div.append(message[i]);
+    }
+  } else {
+    div.text(message);
+  }
+  return div;
+};
+
+SymmetryTaskTutorial.prototype.updateSelected = function() {
+  SymmetryTask.prototype.updateSelected.call(this);
+  var result = this.checkExpected(this.input[this.idx], this.annotations[this.idx]);
+  //console.log('check', this.input[this.idx], this.annotations[this.idx], result);
+  if (result.error) {
+    this.showMessage(result.error, 'alert-danger', this.alertElem);
+    this.okay = false;
+  } else {
+    this.showMessage(result.message, 'alert-success', this.alertElem);
+    this.okay = true;
+  }
+  this.nextButton.prop('disabled', !this.okay);
+};
+
+
+SymmetryTaskTutorial.prototype.allowNext = function() {
+  return this.okay;
+};
+
+SymmetryTaskTutorial.prototype.setIdx = function(new_idx) {
+  if (new_idx >= this.input.length) {
+    this.mainElem.text("Thank you for doing this tutorial.  Please press 'Start' to continue with the main task");
+    this.submitButton.show();
+    this.tutorialModal.find('.close').show();
+  } else {
+    SymmetryTask.prototype.setIdx.call(this, new_idx);
+  }
+};
+
+SymmetryTaskTutorial.prototype.checkExpected = function(item, value) {
+  var category = this.categories.find(function(x) { return x.value === item.expected; }) || {};
+  if (value == null) {
+    return { error: ["Move you cursor in and out of the image box to see the two images.", "Please indicate if you can detect any differences between the images"] };
+  } else if (value === item.expected) {
+    var message = 'Yes, that is correct! ' + (item.message || category.tutorial_message || '');
+    return { message: message };
+  } else {
+    var error = item.error || "Hmm, that doesn't seem quite right";
+    return { error: error };
+  }
+};
+
+
