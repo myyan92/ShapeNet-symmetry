@@ -1,0 +1,12 @@
+{
+  "title": "Indicate if there is a change in the image<",
+  "description": "Hover over images and determine if there is a change",
+  "keywords": "symmetry,image,detect difference",
+  "reward": 0.05,
+  "duration": 900,
+  "frame_height": 20000,
+  "max_assignments": 1,
+  "country": ["US","GB","CA"],
+  "hits_approved": 500,
+  "percent_approved": 98
+}
