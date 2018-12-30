@@ -49,8 +49,8 @@
 
               <p>You will be given <span id="numEntries"></span> pairs of images.  Place you mouse on top and out of the image box to see the different image.</p> 
 
-              <p>Please indicate if you think the two images are identical ("None"), or if the two images are clearly different ("Very different").  Select "Slight" if you see a difference but you don't think it is semantically important, and "Some" if you see a small difference that can affect the way the object is used (examples are reflected letters and handles/buttons on the other side)
-               Select "N/A" if there is something wrong and you can't see any images.
+              <p>Please indicate if you think the two images are identical ("None"), or if the two images are clearly different ("Very different").  Select "Slight" if you see a difference but you don't think it is semantically important, and "Some" if you see a small difference that can affect the way the object is used (examples are reflected letters and handles/buttons on the other side).
+               Select "N/A" if there is something wrong and you can't see any images.  Note that you can also use the keyboard shortcuts (shown in parenthesis) to select.
               </p>
               <p>See the
                 <a class="collapsed" data-parent="#Categorization" data-toggle="collapse" href="#instructionBody" aria-expanded="false" aria-controls="instructionBody">
@@ -78,7 +78,7 @@
                   </tbody>
                 </table>
               </div>
-              <p>Click <span style="color: #2e6da4;">"Next"</span> (or use right arrow) to go to the next item and <span style="color: #4cae4c;">"Submit"</span> when you are done.  The entire task should take approximately <span id="timeEstimate"></span> and you will be paid <span id="payment"></span>.</p>
+              <p>Click <span style="color: #2e6da4;">"Next"</span> (or 'F') to go to the next item and <span style="color: #4cae4c;">"Submit"</span> when you are done.  The entire task should take approximately <span id="timeEstimate"></span> and you will be paid <span id="payment"></span>.</p>
              </div>
 
 
@@ -264,6 +264,8 @@
         });
         var useTutorial = true; 
         function main() {
+          var timings = new Timings();
+          timings.start('total');
           // If this is a HIT on AMT, then replace the default input with the real input.
           var input = simpleamt.getInput(DEFAULT_INPUT);
           input = input.map(function(item) {
@@ -277,10 +279,23 @@
           preloadAllImages(input);
           preloadAllImages(examples);
 
-          var symmetry_task = new SymmetryTask(categories, input, simpleamt, true);
+          simpleamt.setupSubmit();
+          console.log(simpleamt.assignmentId);
+          var symmetry_task = new SymmetryTask(categories, input, 
+            function(output) {
+              timings.stop('main-task');
+              timings.stop('total');
+              simpleamt.setOutput({
+                timings: timings.toJson().durations,
+                annotations: output
+              });              
+              if (simpleamt.assignmentId == null) {
+                alert('Output is ' + simpleamt.getOutput());
+              }
+            }, true);
           symmetry_task.init(simpleamt.isPreview());
           $('#timeEstimate').text('3-5 minutes');
-          $('#payment').text('$1');
+          $('#payment').text('$1.00');
           populateCategoryTable($('#categoriesTable'), categories, examples);
 
           // Tutorial code
@@ -288,13 +303,21 @@
             var tutorial_name = 'tutorial_symmetry_v0_1';
             var savedTutorialResponses = getCookie(tutorial_name);
             var tutorial_items = SymmetryTaskTutorial.selectTutorialItems(examples, ["4", "0", "2", "3"]);
-            var symmetry_task_tutorial = new SymmetryTaskTutorial(categories, tutorial_items, tutorial_name, symmetry_task);
+            var symmetry_task_tutorial = new SymmetryTaskTutorial(categories, tutorial_items, 
+              tutorial_name, symmetry_task);
             if (savedTutorialResponses) {
               symmetry_task_tutorial.fromSerialized(savedTutorialResponses, toItem);
             }
             if (!symmetry_task_tutorial.isComplete()) {
+              timings.start('tutorial');
+              $("#tutorial-modal").on("hidden.bs.modal", function () {
+                timings.stop('tutorial');
+                timings.start('main-task');
+              });
               symmetry_task_tutorial.init();
               $('#tutorial-modal').modal('show');
+            } else {
+              timings.start('main-task');
             }
           }
         }

@@ -101,13 +101,88 @@ function createItemImage(item, parent) {
   return imgElem;  
 }
 
+function TimeRecord(start) {
+  this.start = start;
+}
+
+TimeRecord.prototype.setEnd = function(end) {
+  this.end = end;
+  this.duration = end - this.start;
+};
+
+function Timings() {
+  this.__times = {};
+  this.mark('initial');
+}
+
+Timings.prototype.__getTime = function() {
+  return new Date().getTime();
+};
+
+
+Timings.prototype.start = function(name) {
+  this.__times[name] = new TimeRecord(this.__getTime());
+};
+
+Timings.prototype.stop = function(name) {
+  if (this.__times[name]) {
+    this.__times[name].setEnd(this.__getTime());
+    console.log('Timing for ' + name + ' is ' + this.getDuration(name));
+  }
+};
+
+Timings.prototype.mark = function(name) {
+  this.__times[name] = this.__getTime();
+  console.log('Timing for ' + name + ' is ' + this.getDuration(name));
+};
+
+Timings.prototype.get = function(name) {
+  return this.__times[name];
+};
+
+Timings.prototype.getEndTime = function(name) {
+  if (this.__times[name] != undefined) {
+    var t = this.__times[name];
+    return isFinite(t)? t : t.end;
+  }
+};
+
+Timings.prototype.getDuration = function(name, start) {
+  if (this.__times[name] != undefined) {
+    var t = this.__times[name];
+    if (!(t instanceof TimeRecord)) {
+      start = start || 'initial';
+    }
+    if (start) {
+      var endTime = isFinite(t)? t : t.end;
+      var startTime = this.getEndTime(start);
+      return endTime - startTime;
+    }
+    if (t.duration != undefined) {
+      return t.duration;
+    }
+  }
+};
+
+Timings.prototype.toJson = function() {
+  var res = {};
+  res.times = this.__times;
+  res.durations = {};
+  for (var name in res.times) {
+    if (res.times.hasOwnProperty(name) && name !== 'initial') {
+      res.durations[name] = this.getDuration(name);
+    }
+  }
+  return res;
+};
+
 //
 // Create symmetry task
 // param categories {label: string, value: string, description: string, shortcut: string}
 // param input {id: string, image1: string, image2: string, expected: string}
-// param submitHookup {setupSubmit: function(), setOutput: function(output)}
+// param onSubmit  {function(output)}
 // param useKeyshortcuts {boolean}
-function SymmetryTask(categories, input, submitHookup, useKeyshortcuts) {
+function SymmetryTask(categories, input, onSubmit, useKeyshortcuts) {
   this.input = input;
   // Annotations (parallel to input)
   this.annotations = [];
@@ -115,7 +190,7 @@ function SymmetryTask(categories, input, submitHookup, useKeyshortcuts) {
     this.annotations.push(null);
   }
   // Hookup for submit button
-  this.submitHookup = submitHookup;
+  this.onSubmit = onSubmit;
   // Whether to use keyboard shortcuts
   this.useKeyshortcuts = useKeyshortcuts;
   this.keyCodeMap = this.useKeyshortcuts? {} : null;
@@ -257,13 +332,17 @@ SymmetryTask.prototype.hookupKeys = function() {
       var tagName = (event.target || event.srcElement).tagName;
       var isInputText = (tagName === 'INPUT' || tagName === 'SELECT' || tagName === 'TEXTAREA');
       if (!isInputText && that.enabled) {
-        if (event.keyCode === 37 /* left arrow */) {
+        if (event.keyCode === 37 /* left arrow */ || event.keyCode == 68 /* D */ ) {
           if (!that.prevButton.prop('disabled')) {
             that.prevButton.click();
           }
-        } else if (event.keyCode == 39 /* right arrow */) {
+        } else if (event.keyCode == 39 /* right arrow */ || event.keyCode == 70 /* F */ ) {
           if (!that.nextButton.prop('disabled')) {
             that.nextButton.click();
+          }
+        } else if (event.keyCode == 83 /* S */ ) {
+          if (!that.submitButton.prop('disabled')) {
+            that.submitButton.click();
           }
         }
         var index = that.keyCodeMap[event.keyCode];
@@ -307,23 +386,27 @@ SymmetryTask.prototype.enableHit = function() {
       that.updateSelected();
     });
   }
+  if (this.useKeyshortcuts) {
+    this.prevButton.text(this.prevButton.text() + ' (D)');
+    this.nextButton.text(this.nextButton.text() + ' (F)');
+    this.submitButton.text(this.submitButton.text() + ' (S)');
+  }
   this.hookupKeys();
 
   // Set up submit handler.
-  this.submitHookup.setupSubmit();
   this.submitButton.click(function() {
     that.saveCurrent();
     var annotationsOkay = that.checkAnnotations();
     if (!annotationsOkay) { return false; }
     var output = that.getOutput();
-    that.submitHookup.setOutput(output);
+    that.onSubmit(output);
   });
 };
 
 function SymmetryTaskTutorial(categories, input, cookieName, mainTask) {
   // Tutorial for Symmetry Task
   var that = this;
-  SymmetryTask.call(this, categories, input, { setupSubmit: function() {}, setOutput: function(output) { that.setOutput(output); } }, true);
+  SymmetryTask.call(this, categories, input, function(output) {}, true);
   this.mainTask = mainTask;
   this.cookieName = cookieName;
   this.numEntriesElem = $('#tutorial-numEntries');
