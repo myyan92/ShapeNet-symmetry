@@ -5,6 +5,19 @@ Really the same as the original (just no preview if not qualified and slightly b
 
 Copy to `simple-amt/examples/symmetry` and run following commands.
 
+## Setup SimpleAMT ##
+```
+git clone https://github.com/angelxuanchang/simple-amt.git
+cd simple-amt
+virtualenv .env
+source .env/bin/activate
+pip install -r requirements.txt
+```
+
+Copy and edit `config.json`; fill out the "aws_access_key" and "aws_secret_key" fields.
+```
+cp config.json.example config.json
+```
 
 ## Local testing ##
 
