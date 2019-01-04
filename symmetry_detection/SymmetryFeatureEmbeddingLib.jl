@@ -47,19 +47,52 @@ function estimateDegree(points, axis)
     end
     Frmax = fft(rmax, 1)
     rmax = abs(Frmax)
+    filter(x) = x>0.8
+    idx = find(filter, rmax[1,:])
+    rmax = rmax[1:33, idx]
     rphi = zeros(abin, 2*hbin)
     rphi = angle(Frmax)
+    rphi = rphi[1:33, idx]
     maxval, Descriptor = findmax(rmax[2:end,:],1)
-    Descriptor = (Descriptor-1) .% (abin-1) +1
-    Descriptor[maxval .< 0.55] = 20
+    Descriptor = (Descriptor-1) .% 32 +1
+    for i = 1:size(Descriptor, 2)
+        tmpsort = sort(rmax[2:end, i], rev=true)
+        tmpidx = sortperm(rmax[2:end, i], rev=true)
+        for idx in tmpidx
+            if (rmax[idx+1, i] * 1.5 > maxval[i]) && (idx % Descriptor[i] != 0 || Descriptor[i]==1)
+                Descriptor[i] = 20
+                break
+            end
+        end
+        if (maxval[i] < rmax[1, i] * 0.01) Descriptor[i] = 20 end
+    end
     Descriptor[Descriptor .> 20] = 20
-    phase = [rphi[Descriptor[i]+1, i] for i in 1:2*hbin]
+    phase = [rphi[Descriptor[i]+1, i] for i in 1:size(Descriptor,1)]
     phase = - broadcast(./, vec(phase), vec(Descriptor)) + pi/abin
     maxpos = zeros(3, size(phase,1))
     for i = 1:size(phase,1)
         maxpos[:,i] = cos(phase[i]) * ex + sin(phase[i]) * ey
     end
-    Descriptor, maxpos
+ 
+    Descriptor = vec(Descriptor)
+    idx = sortperm(Descriptor, rev=true)
+    deduplicate_descriptor = [Descriptor[idx[1]]]
+    deduplicate_maxpos = maxpos[:,idx[1]]
+    for i = 2:size(Descriptor, 1)
+        if Descriptor[idx[i]] != deduplicate_descriptor[end]
+            push!(deduplicate_descriptor, Descriptor[idx[i]])
+            deduplicate_maxpos = hcat(deduplicate_maxpos, maxpos[:,idx[i]])
+        end
+    end
+    if (size(deduplicate_descriptor, 1)>1) && (deduplicate_descriptor[1]==20)
+        deduplicate_descriptor = deduplicate_descriptor[2:end]
+        deduplicate_maxpos = deduplicate_maxpos[:,2:end]
+    elseif (size(deduplicate_descriptor, 1)==1) && (deduplicate_descriptor[1]==20)
+        push!(deduplicate_descriptor, 24)
+        deduplicate_maxpos = hcat(deduplicate_maxpos, ex)
+    end
+    
+    deduplicate_descriptor, deduplicate_maxpos
 end
 
 function symLevel(symType)
@@ -151,7 +184,7 @@ function detectSelfSymmetry(Mesh, log)
     canonical_dir = eye(3, 3)
     translate = zeros(3,1)
 
-    if eigenval[1]/eigenval[2] < 0.84 && eigenval[2]/eigenval[3] < 0.84  # A little less than sqrt(3)/2
+    if eigenval[1]/eigenval[2] < 0.84 && eigenval[2]/eigenval[3] < 0.84
         @printf(log, "%s\n", "cuboid group")
         axis = eigenvec[:,1]
         reflectPose = eigenvec[:,2]
@@ -166,7 +199,10 @@ function detectSelfSymmetry(Mesh, log)
             axis = eigenvec[:,3]
         end
         degrees, reflectPoses = estimateDegree(densepoints, axis)
-        @printf(log, "%f %f %f %f %f %f %f %f\n", degrees...)
+        for d in degrees
+            @printf(log, "%f ", d)
+        end
+        @printf(log, "\n")
         idx = sortperm(vec(degrees), rev=true)
         degrees = degrees[idx]
         reflectPoses = reflectPoses[:,idx]
@@ -231,7 +267,10 @@ function detectSelfSymmetry(Mesh, log)
             axis = dir[:,3]
             @printf(log, "%s\n", "C group axis")
             degrees, reflectPoses = estimateDegree(densepoints, axis)
-            @printf(log, "%f %f %f %f %f %f %f %f\n", degrees...)
+            for d in degrees
+                @printf(log, "%f ", d)
+            end
+            @printf(log, "\n")
             idx = sortperm(vec(degrees), rev=true)
             degrees = degrees[idx]
             reflectPoses = reflectPoses[:,idx]
