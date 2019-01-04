@@ -52,7 +52,9 @@ function refineAxis_C(points, axis, degree, reflectPose, log)
         TR,TT,ER,HD = icp(points', points_trans, 1, Minimize="point")
         @printf(log, "%f ", ER[1])
         if ER[1] < thresh_start()
-            TR,TT,ER,HD = icp(points', points_trans, 100, Minimize="point")
+            if degree <= 18
+                TR,TT,ER,HD = icp(points', points_trans, 100, Minimize="point")
+            end
             @printf(log, "%f %f", ER[end], HD)
             axis_t, degree_t, reflect_t = matrix2axis(TR*baserotation)
             @printf(log, " %f", degree_t)

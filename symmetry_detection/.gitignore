@@ -1,2 +1,4 @@
 # results
 ./symmetry_detection/Results/**
+./mitsuba_render/result*
+**.png
