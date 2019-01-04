@@ -2,16 +2,17 @@ module IOUtil
 
 using MeshIO
 using FileIO
+using CleanMeshUtil
 
-export MeshType, loadMesh, loadMesh_v2, saveSymmetry, readSymmetry, saveSymmetryAxis
+export loadMesh, loadMesh_v2, saveSymmetry, readSymmetry, saveSymmetryAxis
 
-type MeshType
-  vertices::Array
-  faces::Array
+#type MeshType
+#  vertices::Array
+#  faces::Array
 
-  MeshType() = new([], [])
-  MeshType(vertices, faces) = new(vertices, faces)
-end
+#  MeshType() = new([], [])
+#  MeshType(vertices, faces) = new(vertices, faces)
+#end
 
 function loadMesh(synsetID, modelname)
     #mesh normalization
@@ -20,7 +21,7 @@ function loadMesh(synsetID, modelname)
 end
 
 function loadMesh_v2(filename)
-    #mesh normalization
+    # construct mesh
     model = load(filename);
     v= zeros(size(model.vertices,1),3);
     for i = 1:size(model.vertices,1)
@@ -35,6 +36,9 @@ function loadMesh_v2(filename)
         push!(newMesh.faces, Array{Int}(f[i, :]))
     end
 
+    newMesh = CleanMesh(newMesh)
+
+    # normalize mesh
     face = newMesh.faces;
     mcenter = zeros(3,1);
     totalarea = 0;
