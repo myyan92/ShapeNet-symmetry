@@ -11,7 +11,7 @@
 
 # Preview #
 
-To see how the mturk task work, you can start  server `python -m SimpleHTTPServer 8085` and going to [localhost:8085/symmetry_object_test.html](localhost:8085/symmetry_object_test.html)
+To see how the mturk task work, you can start  server `python -m SimpleHTTPServer 8085` and going to http://localhost:8085/symmetry_object_test.html
 
 # Development and deploying on Amazaon mturk using simple-amt #
 
@@ -45,7 +45,7 @@ Generate rendered template
 
 `python render_template.py --html_template=examples/symmetry/symmetry_object.html  --rendered_html=test.html`
 
-Test by running server `python -m SimpleHTTPServer 8085` and going to [localhost:8085/test.html](localhost:8085/test.html)
+Test by running server `python -m SimpleHTTPServer 8085` and going to http://localhost:8085/test.html
 
 
 ## Sandbox ##
