@@ -1,0 +1,919 @@
+<html>
+  <head>
+    <title>Indicate if there is a change in the image</title>
+    <!-- simpleamt depends on these libraries -->
+    <script src='//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js'></script>
+    <script src='//cdnjs.cloudflare.com/ajax/libs/json3/3.3.2/json3.min.js'></script>    
+    <!-- end of required libraries -->
+    <script src='//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js'></script>
+    <script src='//cdnjs.cloudflare.com/ajax/libs/underscore.js/1.9.1/underscore-min.js'></script>
+    <link href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+      #text-area {
+        margin: 10px 0;
+        font-size: 24pt;
+      }
+      #button-div {
+        margin-bottom: 10px;
+      }
+      .counter {
+        margin: 0 10px;
+        font-size: 20pt;
+        font-weight: bold;
+      }
+      img {
+        height: 500px;
+      }
+      #categoriesTable img {
+        height: 250px;
+      }
+      .bordered {
+        border-style: solid;
+        border-width: 1px;
+        border-color: gray;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="container" id="Categorization"><!-- Instructions (collapsible) -->
+      <div class="row">
+        <div class="col-xs-12 col-md-12">
+          <div class="panel panel-primary"><!-- WARNING: the ids "collapseTrigger" and "instructionBody" are being used to enable expand/collapse feature -->
+            <div class="panel-heading" role="tab" id="collapseTrigger">
+             <h4 class="panel-title">
+                <strong>Hover over to image to see if the image changes.</strong>
+             </h4>
+            </div>
+            <div class="panel-body" id="instructionHeader">
+              <p>We are trying to understand how people perceive object symmetries.  We have developed a computer program to identify potential symmetries in a object.  Your task to help guide our program by indicating to the program when images of the object are the same (indicating a correct symmetry) or different (indicating that there is no symmetry).</p>
+
+              <p>You will be given <span id="numEntries"></span> pairs of images.  Place you mouse on top and out of the image box to see the different image.</p> 
+
+              <p>Please indicate if you think the two images are identical ("None"), or if the two images are clearly different ("Very different").  Select "Slight" if you see a difference but you don't think it is semantically important, and "Some" if you see a small difference that can affect the way the object is used (examples are reflected letters and handles/buttons on the other side).
+               Select "N/A" if there is something wrong and you can't see any images.  Note that you can also use the keyboard shortcuts (shown in parenthesis) to select.
+              </p>
+              <p>See the
+                <a class="collapsed" data-parent="#Categorization" data-toggle="collapse" href="#instructionBody" aria-expanded="false" aria-controls="instructionBody">
+                  <strong>Selection Criteria</strong>
+                  <span class="collapse-text">(Click to expand)</span>
+                </a> below for more details and examples.
+              </p>
+              <div class="panel-body panel-collapse collapse" id="instructionBody" aria-labelledby="collapseTrigger" >
+                <!-- Detailed instructions for the Worker-->
+                <p>Move your mouse cursor in and out of the image box to see the different images.</p>
+                <table class="table table-condensed table-striped table-responsive">
+                  <tbody>
+                  </tbody>
+                  <colgroup>
+                    <col class="col-xs-2 col-md-2" />
+                    <col class="col-xs-5 col-md-5" />
+                  </colgroup>
+                  <!-- By explaining what is or is not included in a category, the accuracy of the answers may increase. -->
+                  <tbody id="categoriesTable">
+                    <tr>
+                      <th>Category</th>
+                      <th>Description</th>
+                    </tr>
+                    <!-- Add instructions for each category below. Don't forget to rename the categories. -->
+                  </tbody>
+                </table>
+              </div>
+              <p>Click <span style="color: #2e6da4;">"Next"</span> (or 'F') to go to the next item and <span style="color: #4cae4c;">"Submit"</span> when you are done.  The entire task should take approximately <span id="timeEstimate"></span> and you will be paid <span id="payment"></span>.</p>
+             </div>
+
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class='container-fluid'>
+      <div class='row'>
+        <div class='col-xs-12 text-center'>
+          <div id='choices' class='btn-group'>
+          </div>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col-xs-12 text-center'>
+          <div id='image-container'>
+          </div>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col-xs-4 col-xs-offset-4 text-center' id='button-div'>
+          <button id='prev-btn' class='btn btn-lg btn-primary' disabled>Back</button>
+          <span id='counter' class='counter'>
+            <span class='counter-top'></span> / <span class='counter-bottom'></span>
+          </span>
+          <button id='next-btn' class='btn btn-lg btn-primary' disabled>Next</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- tutorial modal -->
+    <div id='tutorial-modal' class="modal fade" tabindex="-1" role="dialog">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="display:none"><span aria-hidden="true">&times;</span></button>
+            <h4 class="modal-title">Tutorial</h4>
+          </div>
+          <div class="modal-body" id="tutorial-body">
+              <p>We are trying to understand how people perceive object symmetries.  We have developed a computer program to identify potential symmetries in a object.  Your task to help guide our program by indicating to the program when images of the object are the same (indicating a correct symmetry) or different (indicating that there is no symmetry).</p>
+
+              <div id="tutorial-main">
+              <p>You will be given <span id="numEntries"></span> pairs of images.  Place you mouse on top and out of the image box to see the different image.</p>
+
+              <p>Please indicate if you think the two images are identical ("None"), or if the two images as are clearly different ("Very different").  Select "Slight" if you see a difference but you don't think it is semantically important, and "Some" if you see a small difference that can affect the way the object is used (examples are reflected letters and handles/buttons on the other side)
+               Select "N/A" if there is something wrong and you can't see any images.
+              </p>
+
+              <div class='row'>
+                <div class='col-xs-12 text-center'>
+                  <div id='tutorial-choices' class='btn-group'></div>
+                </div>
+              </div>
+              <div class='row'>
+                <div class='col-xs-12 text-center'>
+                  <div id="tutorial-message"></div>
+                  <div id='tutorial-image-container'></div>
+                </div>
+              </div>
+              <div class='row'>
+                <div class='col-xs-10 col-xs-offset-1 text-center' id='tutorial-button-div'>
+                  <button id='tutorial-prev-btn' class='btn btn-lg btn-primary' disabled>Back</button>
+                  <span id='tutorial-counter' class='counter'>
+                    <span class='counter-top'></span> / <span class='counter-bottom'></span>
+                  </span>
+                  <button id='tutorial-next-btn' class='btn btn-lg btn-primary' disabled>Next</button>
+                </div>
+              </div>
+              </div>
+              <div class='row text-center'>
+                <button id='tutorial-submit-btn' type="button" class="btn btn-lg btn-success" data-dismiss="modal" style="display:none">Start</button>
+              </div>  
+          </div>
+        </div><!-- /.modal-content -->
+      </div><!-- /.modal-dialog -->
+    </div><!-- /.modal -->
+
+    <script type='text/json' id='input'>
+  
+</script>
+<form id='results-form' method='post' action='dummy' class='text-center'>
+  <input type='hidden' value='' name='assignmentId' id='assignmentId'/>
+  <input type='hidden' value='' name='output' id='output'/>
+  <input type='submit' class='btn btn-lg btn-success' id='submit-btn' value='Submit' disabled/>          
+</form>
+<script>
+  var simpleamt = (function() {
+    
+    // Copied from http://james.padolsey.com/javascript/bujs-1-getparameterbyname/
+    function getUrlParam(name) {
+      var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+      return match ? decodeURIComponent(match[1].replace(/\+/g, ' ')) : null;
+    }
+
+    function getInput(default_input) {
+      if (typeof(default_input) === 'undefined') default_input = null;
+      try {
+        return JSON.parse($('#input').html());
+      } catch (e) {
+        return default_input;
+      }
+    }
+
+    function setOutput(output) {
+      $('#output').val(JSON.stringify(output));
+    }
+
+    function isPreview() {
+      var assignment_id = getUrlParam('assignmentId');
+      if (assignment_id === null) return false;
+      return assignment_id == 'ASSIGNMENT_ID_NOT_AVAILABLE';
+    }
+
+    function setupSubmit() {
+      var submit_to = getUrlParam('turkSubmitTo');
+      $('#results-form').attr('action', submit_to + '/mturk/externalSubmit');                      
+      $('#assignmentId').val(getUrlParam('assignmentId'));
+    }
+
+    return {
+      getInput: getInput,
+      setOutput: setOutput,
+      isPreview: isPreview,
+      setupSubmit: setupSubmit,
+    }
+
+  })();
+</script>
+
+    <script>
+      // Helper functions
+function swap_image_source() {
+    var newSource = $(this).data('alt-src');
+    $(this).data('alt-src', $(this).attr('src'));
+    $(this).attr('src', newSource);
+}
+
+function preloadImages(images) {
+  // Preload all images
+  var imgs = [];
+  _.each(images, function(img_url) {
+    var img = new Image();
+    img.onload = function() { console.log('loaded image from ' + img_url); };
+    img.src = img_url;
+  });
+}
+
+function preloadAllImages(items) {
+  preloadImages(items.map(function(x) { return x.image1; }));
+  preloadImages(items.map(function(x) { return x.image2; }));  
+}
+
+function populateCategoryTable(categoriesTable, categories, items) {
+  var itemsByExpected = _.groupBy(items, function(x) { return x.expected; });
+  for (var i = 0; i < categories.length; i++) {
+    var category = categories[i];
+    var row = $('<tr></tr>');
+    row.append($('<td></td>').text(category.label));
+    var details = $('<td></td');
+    details.append($('<span><span>').text(category.description + ' ' + (category.details || '')));
+    row.append(details);
+    var rowItems = itemsByExpected[category.value];
+    // console.log('items for ', category, rowItems);
+    if (rowItems) {
+      details.append('<br/>');
+      for (var j = 0; j < rowItems.length; j++) {
+        var img = createItemImage(rowItems[j], details);
+        if (rowItems[j].message) {
+          img.attr('title', rowItems[j].message);
+        }
+      }
+    }
+    categoriesTable.append(row);
+  }
+}
+
+function getCookie(cname) {
+  var name = cname + "=";
+  var decodedCookie = decodeURIComponent(document.cookie);
+  var ca = decodedCookie.split(';');
+  for(var i = 0; i <ca.length; i++) {
+    var c = ca[i];
+    while (c.charAt(0) == ' ') {
+      c = c.substring(1);
+    }
+    if (c.indexOf(name) == 0) {
+      return c.substring(name.length, c.length);
+    }
+  }
+  return "";  
+}
+
+function setCookie(cname, value) {
+  document.cookie = cname + '=' + encodeURIComponent(value);
+}
+
+
+// Create UI for selecting category
+// Returns array of ui elements corresponding to each category
+function createSelectCategoryUI(parentElem, categories, keyCodeMap, disabled) {
+  // Create UI for one item
+  var uielems = [];
+  for (var i = 0; i < categories.length; i++) {
+    var category = categories[i];
+    var inputElem = $("<input/>").attr("type", "radio").attr("name", category.label)
+              .attr("value", category.value).prop("hidden", true).prop("disabled", disabled);
+    var shortcut = (category.shortcut != null)? ' (' + category.shortcut + ')': '';
+    var labelElem = $("<label></label>").attr("class", "btn btn-default")
+          .text(category.label + shortcut) 
+          .attr("title", category.description).append(inputElem);
+    var categoryButton = $("<div></div>").attr("class", "radio-inline").append(labelElem).prop("disabled", disabled);
+    if (category.addRow) {
+      parentElem.append("<br/>");
+    }
+    parentElem.append(categoryButton);
+    uielems.push({ input: inputElem, button: categoryButton });
+    if (keyCodeMap != null && category.shortcut != null) {
+      keyCodeMap[category.shortcut.toUpperCase().charCodeAt(0)] = i;
+    }
+  }
+  return uielems;
+}
+
+function createItemImage(item, parent) {
+  var imgElem = $('<img>').attr('src', item.image1)
+    .data('alt-src', item.image2)
+    .addClass('withHover')
+    .addClass('bordered')
+    .appendTo(parent);
+  imgElem.hover(swap_image_source, swap_image_source);
+  return imgElem;  
+}
+
+function TimeRecord(start) {
+  this.start = start;
+}
+
+TimeRecord.prototype.setEnd = function(end) {
+  this.end = end;
+  this.duration = end - this.start;
+};
+
+function Timings() {
+  this.__times = {};
+  this.mark('initial');
+}
+
+Timings.prototype.__getTime = function() {
+  return new Date().getTime();
+};
+
+
+Timings.prototype.start = function(name) {
+  this.__times[name] = new TimeRecord(this.__getTime());
+};
+
+Timings.prototype.stop = function(name) {
+  if (this.__times[name]) {
+    this.__times[name].setEnd(this.__getTime());
+    console.log('Timing for ' + name + ' is ' + this.getDuration(name));
+  }
+};
+
+Timings.prototype.mark = function(name) {
+  this.__times[name] = this.__getTime();
+  console.log('Timing for ' + name + ' is ' + this.getDuration(name));
+};
+
+Timings.prototype.get = function(name) {
+  return this.__times[name];
+};
+
+Timings.prototype.getEndTime = function(name) {
+  if (this.__times[name] != undefined) {
+    var t = this.__times[name];
+    return isFinite(t)? t : t.end;
+  }
+};
+
+Timings.prototype.getDuration = function(name, start) {
+  if (this.__times[name] != undefined) {
+    var t = this.__times[name];
+    if (!(t instanceof TimeRecord)) {
+      start = start || 'initial';
+    }
+    if (start) {
+      var endTime = isFinite(t)? t : t.end;
+      var startTime = this.getEndTime(start);
+      return endTime - startTime;
+    }
+    if (t.duration != undefined) {
+      return t.duration;
+    }
+  }
+};
+
+Timings.prototype.toJson = function() {
+  var res = {};
+  res.times = this.__times;
+  res.durations = {};
+  for (var name in res.times) {
+    if (res.times.hasOwnProperty(name) && name !== 'initial') {
+      res.durations[name] = this.getDuration(name);
+    }
+  }
+  return res;
+};
+
+//
+// Create symmetry task
+// param categories {label: string, value: string, description: string, shortcut: string}
+// param input {id: string, image1: string, image2: string, expected: string}
+// param onSubmit  {function(output)}
+// param useKeyshortcuts {boolean}
+function SymmetryTask(categories, input, onSubmit, useKeyshortcuts) {
+  this.input = input;
+  // Annotations (parallel to input)
+  this.annotations = [];
+  for (var i = 0; i < this.input.length; i++) {
+    this.annotations.push(null);
+  }
+  // Hookup for submit button
+  this.onSubmit = onSubmit;
+  // Whether to use keyboard shortcuts
+  this.useKeyshortcuts = useKeyshortcuts;
+  this.keyCodeMap = this.useKeyshortcuts? {} : null;
+
+  this.categories = categories;
+  this.valid_values = categories.map(function(x) { return x.value; });
+
+  // Some variables to track state of the HIT.
+  this.idx = 0;
+  this.enabled = false;
+
+  // UI elements
+  this.numEntriesElem = $('#numEntries');
+  this.imageContainer = $('#image-container');
+  this.mainCategorySelectElem = $('#choices');
+  this.counterTopElem = $('#counter .counter-top');
+  this.counterBottomElem = $('#counter .counter-bottom');
+  this.prevButton = $('#prev-btn');
+  this.nextButton = $('#next-btn');
+  this.submitButton = $('#submit-btn');
+  // Track UI elements (corresponding to the categories)
+  this.selectCategoryUIElems = [];
+}
+
+SymmetryTask.prototype.init = function(isPreview) {
+  this.numEntriesElem.text(this.input.length);
+  this.selectCategoryUIElems = createSelectCategoryUI(this.mainCategorySelectElem, this.categories, this.keyCodeMap, true);
+
+  // Enable the UI if the HIT is not in preview mode.
+  if (!isPreview) {
+    this.enableHit();
+  }
+
+  // Set up the annotations.
+  this.update();
+};
+
+SymmetryTask.prototype.showAnnotation = function(value) {
+  this.mainCategorySelectElem.find('label').removeClass('active');
+  this.mainCategorySelectElem.find('label input').prop('checked', false);
+  if (value != null) {
+    var inputElem = this.mainCategorySelectElem.find('label input[value=' + value + ']');
+    inputElem.prop('checked', true);
+    inputElem.parent().addClass('active');
+  }
+};
+
+SymmetryTask.prototype.update = function() {
+  // Set up the image
+  var idx = this.idx;
+
+  // Set up the image
+  this.imageContainer.empty();
+  createItemImage(this.input[idx], this.imageContainer);
+  this.showAnnotation(this.annotations[idx]);
+  this.updateSelected();
+
+  // Refresh the counter
+  this.counterTopElem.text(idx + 1);
+  this.counterBottomElem.text(this.input.length);
+
+  // If the UI is enabled, enable or disable the buttons depending on
+  // the index.
+  if (this.enabled) {
+    var prev_btn = this.prevButton;
+    var next_btn = this.nextButton;
+    prev_btn.prop('disabled', true);
+    next_btn.prop('disabled', true);
+    if (idx > 0) {
+      prev_btn.prop('disabled', false);
+    }
+    if (this.allowNext()) {
+      next_btn.prop('disabled', false);
+    }
+  }
+};
+
+SymmetryTask.prototype.allowNext = function() {
+  return this.idx < this.input.length - 1;
+}
+
+// Save current annotation
+SymmetryTask.prototype.saveCurrent = function() {
+  this.annotations[this.idx] = this.getSelected();
+};
+
+SymmetryTask.prototype.getSelected = function() {
+  return this.mainCategorySelectElem.find('input:radio:checked').val();
+};
+
+SymmetryTask.prototype.updateSelected = function(input) {
+  this.saveCurrent();
+};
+
+// Update the index, and save the text in the text area.
+SymmetryTask.prototype.setIdx = function(new_idx) {
+  if (new_idx < 0 || new_idx >= this.input.length) return;
+  this.saveCurrent();
+
+  this.idx = new_idx;
+  this.update();
+};
+
+SymmetryTask.prototype.checkAnnotations = function() {
+  var valid_values = this.valid_values;
+  var invalidIndex = _.findIndex(this.annotations, function(d) { return d == null || valid_values.indexOf(d) < 0; });
+  if (invalidIndex >= 0) {
+    alert('Not all images annotated. Correct entry #' + (invalidIndex+1) + ' before submitting.');
+    return false;
+  }
+  return true;
+};
+
+SymmetryTask.prototype.getOutput = function() {
+  var output = _.map(_.zip(this.input, this.annotations), function(x) {
+    return {'id': x[0].id, 'annotation': x[1]};
+  });
+  return output;
+};
+
+SymmetryTask.prototype.setOutput = function(output) {
+  if (output.length !== this.input.length) {
+    throw "Output does not match input";
+  }
+  var annotations = [];
+  for (var i = 0; i < output.length; i++) {
+    if (this.input[i].id !== output[i].id) {
+      throw "Output id does not match input id for element " + i; 
+    }
+    annotations[i] = output[i].annotation;
+  }
+  this.annotations = annotations;
+}
+
+SymmetryTask.prototype.hookupKeys = function() {
+  if (this.useKeyshortcuts) {
+    var that = this;
+    window.addEventListener("keyup", function (event) {
+      var tagName = (event.target || event.srcElement).tagName;
+      var isInputText = (tagName === 'INPUT' || tagName === 'SELECT' || tagName === 'TEXTAREA');
+      if (!isInputText && that.enabled) {
+        if (event.keyCode === 37 /* left arrow */ || event.keyCode == 68 /* D */ ) {
+          if (!that.prevButton.prop('disabled')) {
+            that.prevButton.click();
+          }
+        } else if (event.keyCode == 39 /* right arrow */ || event.keyCode == 70 /* F */ ) {
+          if (!that.nextButton.prop('disabled')) {
+            that.nextButton.click();
+          }
+        } else if (event.keyCode == 83 /* S */ ) {
+          if (!that.submitButton.prop('disabled')) {
+            that.submitButton.click();
+          }
+        }
+        var index = that.keyCodeMap[event.keyCode];
+        if (index != null) {
+          that.selectCategoryUIElems[index].input.click();
+          that.selectCategoryUIElems[index].button.click();
+          return false;
+        }
+      }
+    });
+  }
+};
+
+SymmetryTask.prototype.next = function() {
+  this.setIdx(this.idx + 1);
+};
+
+SymmetryTask.prototype.prev = function() {
+  this.setIdx(this.idx - 1);
+};
+
+SymmetryTask.prototype.enableHit = function() {
+  this.enabled = true;
+
+  // Enable components
+  var that = this;
+  // this.nextButton.click(function() { that.setIdx(that.idx + 1); });
+  // this.prevButton.click(function() { that.setIdx(that.idx - 1); });
+  this.nextButton.click(function() { that.next(); });
+  this.prevButton.click(function() { that.prev(); });
+  this.submitButton.prop('disabled', false);
+  for (var i = 0; i < this.selectCategoryUIElems.length; i++) {
+    var inputElem = this.selectCategoryUIElems[i];
+    inputElem.input.prop('disabled', false);
+    inputElem.button.prop('disabled', false);
+    inputElem.button.click(function(event) {
+      that.mainCategorySelectElem.find('label').removeClass('active');
+      that.mainCategorySelectElem.find('label input').prop('checked', false);
+      $(this).find('label').addClass('active');
+      $(this).find('label input').prop('checked', true);
+      that.updateSelected();
+    });
+  }
+  if (this.useKeyshortcuts) {
+    this.prevButton.text(this.prevButton.text() + ' (D)');
+    this.nextButton.text(this.nextButton.text() + ' (F)');
+    this.submitButton.text(this.submitButton.text() + ' (S)');
+  }
+  this.hookupKeys();
+
+  // Set up submit handler.
+  this.submitButton.click(function() {
+    that.saveCurrent();
+    var annotationsOkay = that.checkAnnotations();
+    if (!annotationsOkay) { return false; }
+    var output = that.getOutput();
+    that.onSubmit(output);
+  });
+};
+
+function SymmetryTaskTutorial(categories, input, cookieName, mainTask) {
+  // Tutorial for Symmetry Task
+  var that = this;
+  SymmetryTask.call(this, categories, input, function(output) {}, true);
+  this.mainTask = mainTask;
+  this.cookieName = cookieName;
+  this.numEntriesElem = $('#tutorial-numEntries');
+  this.imageContainer = $('#tutorial-image-container');
+  this.mainCategorySelectElem = $('#tutorial-choices');
+  this.counterTopElem = $('#tutorial-counter .counter-top');
+  this.counterBottomElem = $('#tutorial-counter .counter-bottom');
+  this.prevButton = $('#tutorial-prev-btn');
+  this.nextButton = $('#tutorial-next-btn');
+  this.submitButton = $('#tutorial-submit-btn');
+  this.alertElem = $('#tutorial-message');
+  this.mainElem = $('#tutorial-main');
+  this.tutorialModal = $('#tutorial-modal');
+  this.okay = false;
+}
+
+SymmetryTaskTutorial.prototype = Object.create(SymmetryTask.prototype);
+SymmetryTaskTutorial.prototype.constructor = SymmetryTaskTutorial;
+
+SymmetryTaskTutorial.prototype.showMessage = function(message, style, div) {
+  div = div || $('<div></div>');
+  div.attr('class', 'alert ' + style);
+  div.empty();
+  if (Array.isArray(message)) {
+    for (var i = 0; i < message.length; i++) {
+      if (i > 0) {
+        div.append('<br/>');
+      }
+      div.append(message[i]);
+    }
+  } else {
+    div.text(message);
+  }
+  return div;
+};
+
+SymmetryTaskTutorial.prototype.updateSelected = function() {
+  SymmetryTask.prototype.updateSelected.call(this);
+  var result = this.checkExpected(this.input[this.idx], this.annotations[this.idx]);
+  //console.log('check', this.input[this.idx], this.annotations[this.idx], result);
+  if (result.error) {
+    this.showMessage(result.error, 'alert-danger', this.alertElem);
+    this.okay = false;
+  } else {
+    this.showMessage(result.message, 'alert-success', this.alertElem);
+    this.okay = true;
+  }
+  this.nextButton.prop('disabled', !this.okay);
+  this.save();
+};
+
+
+SymmetryTaskTutorial.prototype.allowNext = function() {
+  return this.okay;
+};
+
+SymmetryTaskTutorial.prototype.setIdx = function(new_idx) {
+  if (new_idx >= this.input.length) {
+    this.mainElem.text("Thank you for doing this tutorial.  Please press 'Start' to continue with the main task");
+    this.submitButton.show();
+    this.tutorialModal.find('.close').show();
+    if (this.mainTask) {
+      this.mainTask.enabled = this.savedMainTaskEnabled;
+    }
+  } else {
+    SymmetryTask.prototype.setIdx.call(this, new_idx);
+  }
+};
+
+SymmetryTaskTutorial.prototype.checkExpected = function(item, value) {
+  var category = this.categories.find(function(x) { return x.value === item.expected; }) || {};
+  if (value == null) {
+    return { error: ["Move you cursor in and out of the image box to see the two images.", "Please indicate if you can detect any differences between the images"] };
+  } else if (value === item.expected) {
+    var message = 'Yes, that is correct! ' + (item.message || category.tutorial_message || '');
+    return { message: message };
+  } else {
+    var error = item.error || "Hmm, that doesn't seem quite right";
+    return { error: error };
+  }
+};
+
+SymmetryTaskTutorial.selectTutorialItems = function(items, expected) {
+  var itemsByExpected = _.groupBy(items, function(x) { return x.expected; });
+  var tutorial_items = [];
+  for (var i = 0; i < expected.length; i++) {
+    var items = itemsByExpected[expected[i]];
+    if (items && items.length) {
+      var si = Math.floor(Math.random()*items.length);
+      tutorial_items.push(items[si]);
+      items.splice(si, 1);
+    }
+  }
+  return tutorial_items;
+}
+
+SymmetryTaskTutorial.prototype.save = function() {
+  var string = this.toSerialized();
+  setCookie(this.cookieName, string);
+}
+
+SymmetryTaskTutorial.prototype.toSerialized = function() {
+  return JSON.stringify({ input: this.input.map(function(x) { return _.omit(x, ['image1', 'image2']); }), annotations: this.annotations });
+}
+
+SymmetryTaskTutorial.prototype.fromSerialized = function(savedTutorial, toItem) {
+  var json = JSON.parse(savedTutorial);
+  this.input = json.input.map(function(x) { return toItem(x.id, x); });
+  this.annotations = json.annotations;
+  return this;
+}
+
+SymmetryTaskTutorial.prototype.isComplete = function() {
+  for (var i = 0; i < this.input.length; i++) {
+    var result = this.checkExpected(this.input[i], this.annotations[i]);
+    if (result.error) {
+      return false;
+    }
+  }
+  return true;
+}
+
+SymmetryTaskTutorial.prototype.enableHit = function() {
+  SymmetryTask.prototype.enableHit.call(this);
+  if (this.mainTask) {
+    this.savedMainTaskEnabled = this.mainTask.enabled;
+    this.mainTask.enabled = false;
+  }
+}
+
+
+
+      $(function() {
+        // Helper functions for setting up the data
+        var baseImageUrl = "http://shapenet.cs.stanford.edu/shapenet/screenshots/models/symmetry_detection/";
+        function toItem(id, props) {
+          return _.defaults({
+            id: id,
+            image1: baseImageUrl + id + ".0.tmp.png",
+            image2: baseImageUrl + id + ".1.tmp.png"
+          }, props);
+        }
+
+        var categories = [
+          { "label": "None", "value": "0", 
+            "description": "I can't detect any changes.", 
+            "tutorial_message": "There are no changes in the two images.",
+            "shortcut": '1' },
+//          { "label": "Tiny", "value": "1", 
+//            "description": "I think I detect some flickering when hovering over the image, but I can't really pinpoint what is different.", 
+//            "shortcut": '2', 
+//            "tutorial_message": "Sometimes, the differences are so slight to be almost unnoticeable"},
+          { "label": "Slight", "value": "2", 
+            "description": "There are slight differences, but I don't find the differences to be meaningful.", 
+            "tutorial_message": "There are some slight differences, but they don't change the way the object is used or placed.",
+            "shortcut": '2' }, 
+          { "label": "Some", "value": "3", 
+            "description": "There are some small differences that can affect how the object will be used (examples are reflected letters, handles, buttons, steering wheel or tailpipe on different sides).", 
+            "shortcut": '3' },
+          { "label": "Very different", "value": "4", 
+            "description": "The two images are clearly different.", 
+            "shortcut": '4'},
+          { "label": "N/A", "value": "-1", 
+            "description": "Something is wrong and I can't see any images.", 
+            "details": "This case should not happen.  Select this only if there is a problem and no images are being displayed.",
+            "shortcut": 'X', "addRow": true},
+        ];
+
+        // Define some default input.
+        var ids = [
+         "02880940/5f2ef71aa9b94edbb84959963148f2a2_s17_v1",
+         "02924116/2dca337ba2d9d12a0fba45aa212129_s2_v0",
+         "02933112/b6ec38384c0904a666023b6076341c23_s3_v1",
+         "02691156/75e9e2d6970f5ee71927c29d6faf370a_s1_v0",
+         "02876657/b2507913d631e8b8bcfad79fc308fa6d_s20_v1",
+         "02880940/a593e8863200fdb0664b3b9b23ddfcbc_s16_v1",
+         "02828884/6953a491a4c74d42d5cec9a69bf229a3_s1_v0",
+         "02880940/6494761a8a0461777cba8364368aa1d_s7_v1",
+         "02946921/637006720b7886e0c7a50f701fe65efe_s4_v1",
+         "02954340/5eb9ab53213f5fff4e09ebaf49b0cb2f_s3_v0",
+         "02828884/9bb6f0077f91c613f155d75bbf62b80_s2_v0",
+         "02747177/1532546ac3d8a2cff155d75bbf62b80_s2_v1",
+         "02880940/446583d7bf857dced5cb6d178687b980_s4_v0",
+         "02747177/cfb3a57ec847ebefc99e09be54ad23a9_s16_v0",
+         "02992529/37846d5854ef7da646e4b9487666a2f7_s3_v1",
+         "02876657/518f6867e5d38301fd3bf7a5792372cb_s16_v1",
+         "02880940/b007af6eabaa290dd42b9650f19dd425_s11_v0",
+         "02747177/819795e285ea031625ebd1cd0b422e32_s18_v0",
+         "02747177/18dbebd6527cffa254685f5f473de41f_s7_v0",
+         "02828884/91e169ea3ceb587beff42b9e13c388bc_s7_v1",
+         "02858304/1c4ea31563b54bc8b77192b0405b4a6d_s1_v0",
+         "02691156/ed4aaf81dc577bedac4f72bf08dc79a6_s1_v1",
+         "02942699/a9408583f2c4d6acad8a06dbee1d115_s12_v0",
+         "02958343/9d400df8825de9a62514ed2901e978de_s1_v1",
+         "02880940/2a1e9b5c0cead676b8183a4a81361b94_s7_v0",
+         "02747177/71f3b101a6d47811cb2a965e75be701c_s4_v1",
+         "02808440/397908e45ef98af8aa8891d8ac9b291_s42_v0",
+         "02828884/42be414abcd4f66113c01fa2f350f6d_s1_v0",
+         "02880940/e3e57a94be495771f54e1b6f41fdd78a_s11_v0",
+         "02828884/90a8b80aa2fa209ca936e2693dce34b6_s1_v0",
+        ]; 
+        var DEFAULT_INPUT = ids.map(function(id) {
+          return toItem(id);
+        });
+        var examples = [
+          { "id": "02958343/42b0bc0fd8e292afbbecf72e56fe7e5d_s1_v0", "expected": "3", 
+            "message": "The tailpipe is on different sides of the truck." },
+          {  
+            "id": "02924116/a32145f859e16c791bf41075ed1aebfc_s1_v0", "expected": "3",
+            "message": "The letter is reflected."
+          },
+          { "id": "02992529/767205e25c8755fd89d59b774c6bc1b3_s2_v0", "expected": "3" },  
+          { "id": "02808440/7ec638ee1fa35cbc125fa9990176f0d5_s1_v1", "expected": "0", 
+            },
+          { "id":  "02858304/5b00c251f971aaa437a692cc86ebcb7c_s1_v0", "expected": "0" },
+          { "id":  "02876657/114509277e76e413c8724d5673a063a6_s17_v1", "expected": "0" },  
+          { "id": "02801938/7b407dedd933e3812f59b845f0db2ab3_s21_v1", "expected": "1", 
+            },
+          { "id": "02801938/3e88bbe0b7f7ab5a36b0f2a1430e993a_s4_v1", "expected": "1"},  
+          { "id": "02933112/caa4f65053f07a64548804f91c2c5c3d_s2_v0", "expected": "1"},
+          { "id": "02801938/9b8db1890e6b74d430c7810cba6da248_s4_v1", "expected": "2"},
+          { "id": "02691156/783f3f72d5639597ba0d990ae229b477_s1_v1", "expected": "2", 
+            "message": ""},
+          { "id": "02933112/6db5a05080eb2480f863ead9331efd45_s2_v1", "expected": "2", 
+            "message": ""},
+          { "id": "02933112/906d4fb94d86c4f0f0c255b2dfb0a92a_s1_v0", "expected": "4"},
+          { "id": "02858304/c6ef6b859205ab53609e2d916fa0da27_s3_v1", "expected": "4"},
+          { "id": "02992529/d050f7389538de04ae0591d02e40f07b_s5_v1", "expected": "4"} 
+        ];
+        examples = examples.map(function(item) {
+          return toItem(item.id, item);
+        });
+        var useTutorial = true; 
+        function main() {
+          var timings = new Timings();
+          timings.start('total');
+          // If this is a HIT on AMT, then replace the default input with the real input.
+          var input = simpleamt.getInput(DEFAULT_INPUT);
+          input = input.map(function(item) {
+            if (typeof item === 'string') {
+              return toItem(item);
+            } else {
+              return item;
+            }
+          });
+
+          preloadAllImages(input);
+          preloadAllImages(examples);
+
+          simpleamt.setupSubmit();
+          console.log(simpleamt.assignmentId);
+          var symmetry_task = new SymmetryTask(categories, input, 
+            function(output) {
+              timings.stop('main-task');
+              timings.stop('total');
+              simpleamt.setOutput({
+                timings: timings.toJson().durations,
+                annotations: output
+              });              
+              if (simpleamt.assignmentId == null) {
+                alert('Output is ' + simpleamt.getOutput());
+              }
+            }, true);
+          symmetry_task.init(simpleamt.isPreview());
+          $('#timeEstimate').text('3-5 minutes');
+          $('#payment').text('$1.00');
+          populateCategoryTable($('#categoriesTable'), categories, examples);
+
+          // Tutorial code
+          if (useTutorial) {
+            var tutorial_name = 'tutorial_symmetry_v0_1';
+            var savedTutorialResponses = getCookie(tutorial_name);
+            var tutorial_items = SymmetryTaskTutorial.selectTutorialItems(examples, ["4", "0", "2", "3"]);
+            var symmetry_task_tutorial = new SymmetryTaskTutorial(categories, tutorial_items, 
+              tutorial_name, symmetry_task);
+            if (savedTutorialResponses) {
+              symmetry_task_tutorial.fromSerialized(savedTutorialResponses, toItem);
+            }
+            if (!symmetry_task_tutorial.isComplete()) {
+              timings.start('tutorial');
+              $("#tutorial-modal").on("hidden.bs.modal", function () {
+                timings.stop('tutorial');
+                timings.start('main-task');
+              });
+              symmetry_task_tutorial.init();
+              $('#tutorial-modal').modal('show');
+            } else {
+              timings.start('main-task');
+            }
+          }
+        }
+
+        main();
+      });
+    </script>
+  </body>
+</html>

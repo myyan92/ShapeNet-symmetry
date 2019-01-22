@@ -1,11 +1,31 @@
-Uses [angel's fork](https://github.com/angelxuanchang/simple-amt) of [simple-amt](https://github.com/jcjohnson/simple-amt)
-Really the same as the original (just no preview if not qualified and slightly better `get_all_hits.py`) 
+# Files #
 
 `symmetry_object.html` - Template for symmetry verification for objects 
 
-Copy to `simple-amt/examples/symmetry` and run following commands.
+`symmetry_task.js` - Task logic
 
-## Setup SimpleAMT ##
+`symmetry_object.json` - Config for running mturk
+
+`symmetry_object_test.html` -- Example html (generated from `symmetry_object.html` for turking)
+
+
+# Preview #
+
+To see how the mturk task work, you can start  server `python -m SimpleHTTPServer 8085` and going to [localhost:8085/symmetry_object_test.html](localhost:8085/symmetry_object_test.html)
+
+# Development and deploying on Amazaon mturk using simple-amt #
+
+Uses [angel's fork](https://github.com/angelxuanchang/simple-amt) of [simple-amt](https://github.com/jcjohnson/simple-amt)
+Really the same as the original (just no preview if not qualified and slightly better `get_all_hits.py`) 
+
+See below for how to setup simple-amt.
+
+You will need to do the following
+1. Symlink `mturk` directory to `simple-amt/examples/symmetry`
+
+   `ln -s ShapeNet-symmetry/mturk simple-amt/examples/symmetry`
+
+## Setup simple-amt ##
 ```
 git clone https://github.com/angelxuanchang/simple-amt.git
 cd simple-amt
@@ -25,7 +45,7 @@ Generate rendered template
 
 `python render_template.py --html_template=examples/symmetry/symmetry_object.html  --rendered_html=test.html`
 
-Test by running server `python -m SimpleHTTPServer 8085` and going to <localhost:8085/test.html>
+Test by running server `python -m SimpleHTTPServer 8085` and going to [localhost:8085/test.html](localhost:8085/test.html)
 
 
 ## Sandbox ##
