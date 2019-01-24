@@ -13,6 +13,23 @@
 
 To see how the mturk task work, you can start  server `python -m SimpleHTTPServer 8085` and going to http://localhost:8085/symmetry_object_test.html
 
+# Preparing data for annotation #
+
+1. Run symmetry detection
+
+2. Render symmetry detection results
+
+3. Do preliminary filtering of identical images to reduce cost of annotaion
+
+4. Get list of symmetry ids to verify
+
+5. Batch symmetry ids
+
+```
+python batch.py -n 30 --shuffle -i symmetry_ids.txt -o symmetry_ids.batched.jsonl
+```
+
+
 # Development and deploying on Amazaon mturk using simple-amt #
 
 Uses [angel's fork](https://github.com/angelxuanchang/simple-amt) of [simple-amt](https://github.com/jcjohnson/simple-amt)
@@ -87,7 +104,7 @@ Seems to also approve outstanding assignments.
       --prod \
       --html_template=examples/symmetry/symmetry_object.html \
       --hit_properties_file=examples/symmetry/symmetry_object.json \
-      --input_json_file=examples/symmetry/input.jsonl \
+      --input_json_file=examples/symmetry/symmetry_ids.batched.jsonl \
       --hit_ids_file=examples/symmetry/prod_hit_ids.txt
     ```
 
