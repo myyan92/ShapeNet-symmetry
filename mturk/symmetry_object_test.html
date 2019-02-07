@@ -22,10 +22,10 @@
         font-weight: bold;
       }
       img {
-        height: 500px;
+        height: 450px;
       }
       #categoriesTable img {
-        height: 250px;
+        height: 230px;
       }
       .bordered {
         border-style: solid;
@@ -55,8 +55,8 @@
               <p>See the
                 <a class="collapsed" data-parent="#Categorization" data-toggle="collapse" href="#instructionBody" aria-expanded="false" aria-controls="instructionBody">
                   <strong>Selection Criteria</strong>
-                  <span class="collapse-text">(Click to expand)</span>
-                </a> below for more details and examples.
+                  <span class="collapse-text">(Click to expand/hide)</span>
+                </a> below for examples of when to select what.
               </p>
               <div class="panel-body panel-collapse collapse" id="instructionBody" aria-labelledby="collapseTrigger" >
                 <!-- Detailed instructions for the Worker-->
@@ -123,11 +123,13 @@
               <p>We are trying to understand how people perceive object symmetries.  We have developed a computer program to identify potential symmetries in a object.  Your task to help guide our program by indicating to the program when images of the object are the same (indicating a correct symmetry) or different (indicating that there is no symmetry).</p>
 
               <div id="tutorial-main">
-              <p>You will be given <span id="numEntries"></span> pairs of images.  Place you mouse on top and out of the image box to see the different image.</p>
+              <p>First, we'll go over a brief tutorial for you to get a hang of this task.</p>
 
-              <p>Please indicate if you think the two images are identical ("None"), or if the two images as are clearly different ("Very different").  Select "Slight" if you see a difference but you don't think it is semantically important, and "Some" if you see a small difference that can affect the way the object is used (examples are reflected letters and handles/buttons on the other side)
-               Select "N/A" if there is something wrong and you can't see any images.
-              </p>
+              <p>You will be given <span id="numEntries"></span> pairs of images.  Move your mouse cursor in and out of the image box to see the different images.</p>
+
+              <p>Do you detect any changes?  Please select how much change you detected by clicking on one of the buttons (you can also use the shortcut keys in parenthesis to select).  Select "None" if you can't detect any changes. Select "Slight" if you see a difference but you don't think it is semantically important, and "Some" if you see a small difference that can affect the way the object is used (examples are reflected letters and handles/buttons on the other side.  Select "Very different" if the two images are clearly different. Finally, select "N/A" if there is something wrong and you can't see any images.</p>
+
+              <p>Click on 'Next' (or press 'F' to go to the next item)</p>
 
               <div class='row'>
                 <div class='col-xs-12 text-center'>
@@ -884,6 +886,9 @@ SymmetryTaskTutorial.prototype.enableHit = function() {
               }
             }, true);
           symmetry_task.init(simpleamt.isPreview());
+          if (simpleamt.isPreview()) {
+            $('#instructionBody').collapse('show');
+          }
           $('#timeEstimate').text('3-5 minutes');
           $('#payment').text('$1.00');
           populateCategoryTable($('#categoriesTable'), categories, examples);

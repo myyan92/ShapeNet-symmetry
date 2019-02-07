@@ -37,10 +37,10 @@ def main(options):
 
 def parse_arguments():
     parser = argparse.ArgumentParser(usage="Batch items and outputs them")
-    parser.add_argument('-n', type=int, help="Batch size")
+    parser.add_argument('-n', type=int, help="Batch size", required=True)
     parser.add_argument('--shuffle', action="store_true", help="Shuffle input")
-    parser.add_argument('-i', '--input', type=argparse.FileType("r"), help="Input filename")
-    parser.add_argument('-o', '--output', help="Output filename")
+    parser.add_argument('-i', '--input', type=argparse.FileType("r"), required=True, help="Input filename")
+    parser.add_argument('-o', '--output', required=True, help="Output filename")
     options = parser.parse_args()
     return options
 
