@@ -6,7 +6,7 @@
 
 `symmetry_object.json` - Config for running mturk
 
-`symmetry_object_test.html` -- Example html (generated from `symmetry_object.html` for turking)
+`symmetry_object_test.html` -- Example html (generated from `symmetry_object.html` for testing locally)
 
 
 # Preview #
@@ -60,9 +60,9 @@ cp config.json.example config.json
 
 Generate rendered template
 
-`python render_template.py --html_template=examples/symmetry/symmetry_object.html  --rendered_html=test.html`
+`python render_template.py --html_template=examples/symmetry/symmetry_object.html  --rendered_html=examples/symmetry/symmetry_object_test.html`
 
-Test by running server `python -m SimpleHTTPServer 8085` and going to http://localhost:8085/test.html
+Test by running server `python -m SimpleHTTPServer 8085` and going to http://localhost:8085/examples/symmetry/symmetry_object_test.html
 
 
 ## Sandbox ##

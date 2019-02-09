@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
   <head>
     <title>Indicate if there is a change in the image</title>
@@ -39,7 +40,7 @@
       <div class="row">
         <div class="col-xs-12 col-md-12">
           <div class="panel panel-primary"><!-- WARNING: the ids "collapseTrigger" and "instructionBody" are being used to enable expand/collapse feature -->
-            <div class="panel-heading" role="tab" id="collapseTrigger">
+            <div class="panel-heading" id="collapseTrigger">
              <h4 class="panel-title">
                 <strong>Hover over to image to see if the image changes.</strong>
              </h4>
@@ -62,12 +63,6 @@
                 <!-- Detailed instructions for the Worker-->
                 <p>Move your mouse cursor in and out of the image box to see the different images.</p>
                 <table class="table table-condensed table-striped table-responsive">
-                  <tbody>
-                  </tbody>
-                  <colgroup>
-                    <col class="col-xs-2 col-md-2" />
-                    <col class="col-xs-5 col-md-5" />
-                  </colgroup>
                   <!-- By explaining what is or is not included in a category, the accuracy of the answers may increase. -->
                   <tbody id="categoriesTable">
                     <tr>
@@ -125,7 +120,7 @@
               <div id="tutorial-main">
               <p>First, we'll go over a brief tutorial for you to get a hang of this task.</p>
 
-              <p>You will be given <span id="numEntries"></span> pairs of images.  Move your mouse cursor in and out of the image box to see the different images.</p>
+              <p>You will be given <span id="tutorial-numEntries"></span> pairs of images.  Move your mouse cursor in and out of the image box to see the different images.</p>
 
               <p>Do you detect any changes?  Please select how much change you detected by clicking on one of the buttons (you can also use the shortcut keys in parenthesis to select).  Select "None" if you can't detect any changes. Select "Slight" if you see a difference but you don't think it is semantically important, and "Some" if you see a small difference that can affect the way the object is used (examples are reflected letters and handles/buttons on the other side.  Select "Very different" if the two images are clearly different. Finally, select "N/A" if there is something wrong and you can't see any images.</p>
 
@@ -197,7 +192,7 @@
           { "label": "N/A", "value": "-1", 
             "description": "Something is wrong and I can't see any images.", 
             "details": "This case should not happen.  Select this only if there is a problem and no images are being displayed.",
-            "shortcut": 'X', "addRow": true},
+            "shortcut": 'X', "addRow": false},
         ];
 
         // Define some default input.
@@ -282,7 +277,7 @@
           preloadAllImages(examples);
 
           simpleamt.setupSubmit();
-          console.log(simpleamt.assignmentId);
+          //console.log(simpleamt.assignmentId);
           var symmetry_task = new SymmetryTask(categories, input, 
             function(output) {
               timings.stop('main-task');
@@ -295,7 +290,6 @@
                 alert('Output is ' + simpleamt.getOutput());
               }
             }, true);
-          symmetry_task.init(simpleamt.isPreview());
           if (simpleamt.isPreview()) {
             $('#instructionBody').collapse('show');
           }
@@ -303,26 +297,36 @@
           $('#payment').text('$1.00');
           populateCategoryTable($('#categoriesTable'), categories, examples);
 
+          symmetry_task.init(false);
+          var isPreview = simpleamt.isPreview();
           // Tutorial code
-          if (useTutorial) {
-            var tutorial_name = 'tutorial_symmetry_v0_1';
-            var savedTutorialResponses = getCookie(tutorial_name);
-            var tutorial_items = SymmetryTaskTutorial.selectTutorialItems(examples, ["4", "0", "2", "3"]);
-            var symmetry_task_tutorial = new SymmetryTaskTutorial(categories, tutorial_items, 
-              tutorial_name, symmetry_task);
-            if (savedTutorialResponses) {
-              symmetry_task_tutorial.fromSerialized(savedTutorialResponses, toItem);
-            }
-            if (!symmetry_task_tutorial.isComplete()) {
-              timings.start('tutorial');
-              $("#tutorial-modal").on("hidden.bs.modal", function () {
-                timings.stop('tutorial');
+          if (!isPreview) {
+            if (useTutorial) {
+              var tutorial_name = 'tutorial_symmetry_v0_1';
+              var savedTutorialResponses = getCookie(tutorial_name);
+              var tutorial_items = SymmetryTaskTutorial.selectTutorialItems(examples, ["4", "0", "2", "3"]);
+              var symmetry_task_tutorial = new SymmetryTaskTutorial(categories, tutorial_items, 
+                tutorial_name, symmetry_task);
+              if (savedTutorialResponses) {
+                symmetry_task_tutorial.fromSerialized(savedTutorialResponses, toItem);
+              }
+              if (!symmetry_task_tutorial.isComplete()) {
+                timings.start('tutorial');
+                $("#tutorial-modal").on("hidden.bs.modal", function () {
+                  timings.stop('tutorial');
+                  timings.start('main-task');
+                  symmetry_task.enableHit();
+                });
+                symmetry_task_tutorial.init(true);
+                $('#tutorial-modal').modal({backdrop: 'static', keyboard: false});
+                //$('#tutorial-modal').modal('show');
+              } else {
                 timings.start('main-task');
-              });
-              symmetry_task_tutorial.init();
-              $('#tutorial-modal').modal('show');
+                symmetry_task.enableHit();
+              }
             } else {
               timings.start('main-task');
+              symmetry_task.enableHit();
             }
           }
         }

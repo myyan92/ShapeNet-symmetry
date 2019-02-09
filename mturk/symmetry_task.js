@@ -215,17 +215,17 @@ function SymmetryTask(categories, input, onSubmit, useKeyshortcuts) {
   this.selectCategoryUIElems = [];
 }
 
-SymmetryTask.prototype.init = function(isPreview) {
+SymmetryTask.prototype.init = function(enable) {
   this.numEntriesElem.text(this.input.length);
   this.selectCategoryUIElems = createSelectCategoryUI(this.mainCategorySelectElem, this.categories, this.keyCodeMap, true);
 
   // Enable the UI if the HIT is not in preview mode.
-  if (!isPreview) {
+  if (enable) {
     this.enableHit();
+  } else {
+    // Set up the annotations.
+    this.update();
   }
-
-  // Set up the annotations.
-  this.update();
 };
 
 SymmetryTask.prototype.showAnnotation = function(value) {
@@ -365,6 +365,11 @@ SymmetryTask.prototype.prev = function() {
 };
 
 SymmetryTask.prototype.enableHit = function() {
+  this.__enableHit();
+  this.update();
+};
+
+SymmetryTask.prototype.__enableHit = function() {
   this.enabled = true;
 
   // Enable components
@@ -529,8 +534,8 @@ SymmetryTaskTutorial.prototype.isComplete = function() {
   return true;
 }
 
-SymmetryTaskTutorial.prototype.enableHit = function() {
-  SymmetryTask.prototype.enableHit.call(this);
+SymmetryTaskTutorial.prototype.__enableHit = function() {
+  SymmetryTask.prototype.__enableHit.call(this);
   if (this.mainTask) {
     this.savedMainTaskEnabled = this.mainTask.enabled;
     this.mainTask.enabled = false;
